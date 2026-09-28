@@ -20,5 +20,10 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Project Context Files
+agent.md
+agents.md
+concepts.md
+
 # Project Temporary Test Scripts
 scratch/
