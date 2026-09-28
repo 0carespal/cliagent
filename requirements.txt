@@ -1,0 +1,14 @@
+# CLI Agent Dependencies
+
+# Terminal UI & Output Formatting
+rich>=13.0.0
+inquirerpy>=0.3.4
+
+# Fast Fuzzy String Matching
+rapidfuzz>=3.0.0
+
+# HTTP Requests (for Local LLM Ollama/LM Studio & Cloud APIs)
+httpx>=0.24.0
+
+# Command Line Interface Construction
+typer>=0.9.0

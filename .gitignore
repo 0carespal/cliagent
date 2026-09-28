@@ -1,0 +1,24 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE Settings
+.idea/
+.vscode/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Project Temporary Test Scripts
+scratch/
