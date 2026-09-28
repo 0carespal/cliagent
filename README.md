@@ -1,6 +1,6 @@
 # 🤖 Autobot — Intelligent File & Folder Management CLI Agent
 
-`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy string search**, **dry-run preview tables**, **transaction history undo logs**, and a **hybrid interface** supporting CLI flags, interactive menus, and natural language command processing via Local LLMs (**Gemma 4B / Qwen 4B**) or Cloud Gemini.
+`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy string search**, **dry-run preview tables**, **transaction history undo logs**, and a **hybrid interface** supporting CLI flags, interactive menus, and natural language command processing via Local LLMs (like **Gemma / Qwen**) or Cloud LLM (like **Gemini,Chatgpt**etc).
 
 ---
 
@@ -88,15 +88,15 @@ python main.py
 `Autobot` supports offline local AI execution via **Ollama** or **LM Studio**:
 
 1. Install and run [Ollama](https://ollama.ai) or LM Studio.
-2. Pull a 4B model (e.g., `gemma2:4b` or `qwen2.5:4b`):
+2. Pull a model (e.g., `gemma2:4b` or `qwen2.5:4b`):
    ```bash
    ollama run gemma2:4b
    ```
 3. `Autobot` automatically detects the local OpenAI-compatible endpoint at `http://localhost:11434/v1` and routes natural language prompts to your local model!
 
-*(Optional)* To use Cloud Gemini instead, set your API key environment variable:
+*(Optional)* To use Cloud LLMs instead, set your API key environment variable:
 ```bash
-set GEMINI_API_KEY="your-api-key-here"
+set LLM_API_KEY="your-api-key-here"
 ```
 
 ---
