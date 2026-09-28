@@ -23,7 +23,7 @@ class LocalLLMClient:
         self.endpoint = f"{self.base_url}/chat/completions"
         self.model_name = model_name
 
-    def is_available((self) -> bool:
+    def is_available(self) -> bool:
         """
         Checks if the local LLM server (Ollama/LM Studio) is reachable.
         """
