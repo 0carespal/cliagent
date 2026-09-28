@@ -113,8 +113,8 @@ cliagent/
 │   └── safety.py         # Rich dry-run preview renderer & JSON transaction undo log
 ├── ai/
 │   ├── base.py           # System prompts & JSON response sanitization
-│   ├── local_llm.py      # Ollama / LM Studio (Gemma/Qwen) HTTP client
-│   ├── cloud_llm.py      # Cloud Gemini API client
+│   ├── local_llm.py      # Ollama / LM Studio (Gemma/Qwen or any other) HTTP client
+│   ├── cloud_llm.py      # Cloud LLM API client
 │   └── intent_parser.py  # Unified AI provider router
 ├── ui/
 │   ├── tables.py         # Rich terminal tables & file size formatters
