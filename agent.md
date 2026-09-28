@@ -90,7 +90,7 @@ cliagent/
 - [x] **Phase 2: Core Finder Engine (`core/finder.py`)**: Fast recursive walker, fuzzy matching, folder pruning, & filters.
 - [x] **Phase 3: Core Renamer Engine (`core/renamer.py`)**: Single and bulk rename operations & case converters.
 - [x] **Phase 4: Core Mover Engine (`core/mover.py`)**: Moving files, destination verification, & missing directory prompt logic.
-- [ ] **Phase 5: Safety Subsystem (`core/safety.py`)**: Dry-run preview renderer (`rich` table) & undo log recorder/reverser.
+- [x] **Phase 5: Safety Subsystem (`core/safety.py`)**: Dry-run preview renderer (`rich` table) & undo log recorder/reverser.
 - [ ] **Phase 6: AI Intent Engine (`ai/`)**: System prompt design & JSON tool parser for Gemma/Qwen/Gemini.
 - [ ] **Phase 7: CLI Interface & Hybrid UI (`main.py` & `ui/`)**: `argparse` CLI commands, interactive menu fallback, & entry point wiring.
 
@@ -98,5 +98,5 @@ cliagent/
 
 ## 7. Current Project Status
 
-- **Status**: Phase 4 Completed. Ready for **Phase 5: Safety Subsystem (`core/safety.py`)**.
-- **Last Action**: Implemented `FileMover` in `core/mover.py` with `MoveAction` validation, destination directory check (`MISSING_DESTINATION`), user prompt helper `create_destination_directory(target_dir, user_confirmed)`, cross-volume support (`shutil.move`), and git commit.
+- **Status**: Phase 5 Completed. Ready for **Phase 6: AI Intent Engine (`ai/`)**.
+- **Last Action**: Implemented `TransactionLogger` (JSON session logs at `~/.cliagent/history.json`, stack reverse undo logic) and `PlanRenderer` (Rich terminal preview table) in `core/safety.py`, and committed changes.
