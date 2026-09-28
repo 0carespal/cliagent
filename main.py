@@ -20,7 +20,7 @@ from ai.intent_parser import AIIntentParser
 from ui.tables import TableRenderer
 from ui.interactive import InteractiveUI
 
-app = typer.Typer(help="🤖 cliagent — Intelligent File & Folder Management CLI Agent")
+app = typer.Typer(help="🤖 Autobot — Intelligent File & Folder Management CLI Agent")
 console = Console()
 finder = FileFinder()
 logger = TransactionLogger()

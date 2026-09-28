@@ -1,5 +1,5 @@
 """
-Global Configuration Module for cliagent.
+Global Configuration Module for Autobot.
 Defines system-wide constants, default ignored directories, and LLM connection settings.
 """
 from pathlib import Path
@@ -41,11 +41,11 @@ DEFAULT_IGNORED_DIRS = {
 }
 
 # Transaction History Log File Path (for Undo functionality)
-HISTORY_FILE_PATH = Path.home() / ".cliagent" / "history.json"
+HISTORY_FILE_PATH = Path.home() / ".autobot" / "history.json"
 
 # Local LLM Defaults (Ollama / LM Studio)
-LOCAL_LLM_URL = os.getenv("CLIAGENT_LOCAL_LLM_URL", "http://localhost:11434/v1")
-LOCAL_LLM_MODEL = os.getenv("CLIAGENT_LOCAL_LLM_MODEL", "gemma2:4b")  # or qwen2.5:4b
+LOCAL_LLM_URL = os.getenv("AUTOBOT_LOCAL_LLM_URL", os.getenv("CLIAGENT_LOCAL_LLM_URL", "http://localhost:11434/v1"))
+LOCAL_LLM_MODEL = os.getenv("AUTOBOT_LOCAL_LLM_MODEL", os.getenv("CLIAGENT_LOCAL_LLM_MODEL", "gemma2:4b"))  # or qwen2.5:4b
 
 # Cloud Gemini API Defaults
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

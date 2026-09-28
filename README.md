@@ -1,6 +1,6 @@
-# 🤖 cliagent — Intelligent File & Folder Management CLI Agent
+# 🤖 Autobot — Intelligent File & Folder Management CLI Agent
 
-`cliagent` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy string search**, **dry-run preview tables**, **transaction history undo logs**, and a **hybrid interface** supporting CLI flags, interactive menus, and natural language command processing via Local LLMs (**Gemma 4B / Qwen 4B**) or Cloud Gemini.
+`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy string search**, **dry-run preview tables**, **transaction history undo logs**, and a **hybrid interface** supporting CLI flags, interactive menus, and natural language command processing via Local LLMs (**Gemma 4B / Qwen 4B**) or Cloud Gemini.
 
 ---
 
@@ -9,10 +9,10 @@
 * **🔍 Smart Fuzzy Search**: Locates files/folders across directories using similarity scoring (`rapidfuzz`). Typing `invoice` matches `Annual_Invoice_2024.pdf`.
 * **⚡ In-Place Directory Pruning**: Automatically skips scanning junk/system folders (`.git`, `node_modules`, `AppData`, `__pycache__`, `$Recycle.Bin`) for lightning-fast performance.
 * **✏️ Single & Bulk Rename**: Rename individual items or apply pattern transformations (prefix, suffix, find & replace, sequence numbering like `01`, `02`, `snake_case`, `kebab-case`).
-* **🚚 Destination Folder Protection**: Verifies target destination directories. If a target folder is missing, `cliagent` halts and prompts: *"Destination directory does not exist. Create folder? [y/N]"*. It creates folders **only** if confirmed with `y` or `Y`.
+* **🚚 Destination Folder Protection**: Verifies target destination directories. If a target folder is missing, `Autobot` halts and prompts: *"Destination directory does not exist. Create folder? [y/N]"*. It creates folders **only** if confirmed with `y` or `Y`.
 * **🔍 Dry-Run Preview Mode (`--dry-run`)**: Displays a color-coded Rich table of proposed actions, source/target paths, and warnings without touching your disk.
-* **↩️ Transaction History & Undo (`cliagent undo`)**: Automatically logs file operations to `~/.cliagent/history.json`. Run `python main.py undo` to reverse the last move or rename batch.
-* **🤖 Natural Language AI Engine (`cliagent ask`)**: Accepts plain English sentences and converts them into structured actions using local Ollama/LM Studio LLMs (`Gemma 4B`, `Qwen 4B`) or Cloud Gemini APIs.
+* **↩️ Transaction History & Undo (`autobot undo`)**: Automatically logs file operations to `~/.autobot/history.json`. Run `python main.py undo` to reverse the last move or rename batch.
+* **🤖 Natural Language AI Engine (`autobot ask`)**: Accepts plain English sentences and converts them into structured actions using local Ollama/LM Studio LLMs (`Gemma 4B`, `Qwen 4B`) or Cloud Gemini APIs.
 
 ---
 
@@ -64,7 +64,7 @@ python main.py rename "IMG" --seq "photo_"
 ```
 
 ### 4. Natural Language AI Assistant (`ask`)
-Talk to `cliagent` in plain English:
+Talk to `Autobot` in plain English:
 ```bash
 python main.py ask "Find all PNG files in Downloads and move them to Pictures/PNGs"
 ```
@@ -76,7 +76,7 @@ python main.py undo
 ```
 
 ### 6. Interactive Menu Mode
-Run `cliagent` with no arguments to launch the interactive terminal menu:
+Run `Autobot` with no arguments to launch the interactive terminal menu:
 ```bash
 python main.py
 ```
@@ -85,14 +85,14 @@ python main.py
 
 ## 🤖 Local LLM Setup (Gemma 4B / Qwen 4B)
 
-`cliagent` supports offline local AI execution via **Ollama** or **LM Studio**:
+`Autobot` supports offline local AI execution via **Ollama** or **LM Studio**:
 
 1. Install and run [Ollama](https://ollama.ai) or LM Studio.
 2. Pull a 4B model (e.g., `gemma2:4b` or `qwen2.5:4b`):
    ```bash
    ollama run gemma2:4b
    ```
-3. `cliagent` automatically detects the local OpenAI-compatible endpoint at `http://localhost:11434/v1` and routes natural language prompts to your local model!
+3. `Autobot` automatically detects the local OpenAI-compatible endpoint at `http://localhost:11434/v1` and routes natural language prompts to your local model!
 
 *(Optional)* To use Cloud Gemini instead, set your API key environment variable:
 ```bash

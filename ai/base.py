@@ -4,7 +4,7 @@ Defines structured JSON schemas and system prompts for LLM intent parsing.
 """
 from typing import Dict, Any, Optional
 
-SYSTEM_PROMPT = """You are an AI File System Intent Parser for cliagent.
+SYSTEM_PROMPT = """You are an AI File System Intent Parser for Autobot.
 Your sole job is to translate a user's natural language request into a single structured JSON object.
 
 You MUST respond ONLY with valid JSON. Do not include markdown block formatting, extra text, or explanations outside the JSON.

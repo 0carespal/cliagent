@@ -40,7 +40,7 @@ class InteractiveUI:
         Displays an interactive main menu when cliagent is launched without flags.
         """
         console.print("\n[bold cyan]===============================================[/bold cyan]")
-        console.print("[bold cyan]       🤖 cliagent — Interactive Menu         [/bold cyan]")
+        console.print("[bold cyan]       🤖 Autobot — Interactive Menu           [/bold cyan]")
         console.print("[bold cyan]===============================================[/bold cyan]")
         console.print("  [bold yellow]1.[/bold yellow] 🔍 Locate Files / Folders")
         console.print("  [bold yellow]2.[/bold yellow] ✏️  Rename Files / Folders")
