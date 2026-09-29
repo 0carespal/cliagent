@@ -119,7 +119,7 @@ cliagent/
 - [x] **Phase 7: CLI Interface & Baseline UI (`main.py` & `ui/`)**: `typer` subcommands & Rich output tables.
 - [x] **Phase 8: Centralized Theme & Styling Engine (`ui/theme.py`)**: Antigravity CLI color palette, Option A ASCII box banner renderer, Rich console tokens & error/warning cards.
 - [x] **Phase 9: Persistent REPL Shell Loop (`ui/repl.py`)**: `autobot › ` interactive shell, session state retention, signal handling (`Ctrl+C`/`Ctrl+D`), non-TTY fallback, & tab auto-completion for slash commands and file paths.
-- [ ] **Phase 10: Slash Command Router (`core/slash_commands.py`)**: Handlers for `/locate`, `/rename`, `/move`, `/undo`, `/model`, `/status`, `/help`, `/clear`, `/exit`.
+- [x] **Phase 10: Slash Command Router (`core/slash_commands.py`)**: Token parsing (`shlex`), handlers for `/locate`, `/rename`, `/move`, `/undo`, `/model`, `/status`, `/help`, `/clear`, `/exit`.
 - [ ] **Phase 11: Dynamic Header & Status Bar Integration**: Real-time status bar rendering in REPL and command outputs.
 - [ ] **Phase 12: Interactive Action Cards & Confirmation Guardrails**: InquirerPy dry-run preview confirmation dialogs before disk changes.
 - [ ] **Phase 13: Live Animated Spinners & AI Thinking States**: Rich spinners for directory search and AI intent parsing steps.
@@ -129,6 +129,7 @@ cliagent/
 
 ## 7. Current Project Status
 
-- **Status**: Phase 9 Completed. Ready for **Phase 10: Slash Command Router (`core/slash_commands.py`)**.
-- **Last Action**: Built `ui/repl.py` (`autobot › ` prompt loop, command history logging in `~/.autobot/repl_history.txt`, tab auto-completer for slash commands and file paths, graceful signal handling, non-TTY TTY fallback).
+- **Status**: Phase 10 Completed. Ready for **Phase 11: Dynamic Header & Status Bar Integration**.
+- **Last Action**: Created `core/slash_commands.py` (`SlashCommandRouter` dispatcher, argument parsing via `shlex`, handlers for all 9 slash commands with Rich card output).
+
 
