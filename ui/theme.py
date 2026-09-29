@@ -165,3 +165,14 @@ class AutobotTheme:
     def render_warning(cls, message: str) -> None:
         """Renders warning messages with consistent styling."""
         cls.console.print(f"[bold yellow]⚠️ Warning:[/bold yellow] {message}")
+
+    @classmethod
+    def status(cls, message: str, spinner: str = "dots"):
+        """
+        Context manager for rendering live animated progress spinners.
+        Usage:
+            with AutobotTheme.status("Searching directory tree..."):
+                results = finder.search(...)
+        """
+        return cls.console.status(f"[bold cyan]{message}[/bold cyan]", spinner=spinner)
+

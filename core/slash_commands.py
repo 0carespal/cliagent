@@ -101,7 +101,8 @@ class SlashCommandRouter:
 
         AutobotTheme.get_console().print(f"[dim cyan]Searching for:[/dim cyan] '{query}' in [bold]{start_dir}[/bold]...")
         try:
-            results = self.finder.search(query=query, start_dir=start_dir, extensions=exts)
+            with AutobotTheme.status(f"Searching directory tree for '{query}'..."):
+                results = self.finder.search(query=query, start_dir=start_dir, extensions=exts)
             TableRenderer.render_search_results(results, query=query)
         except Exception as e:
             AutobotTheme.render_error(f"Search failed: {e}")
@@ -118,11 +119,12 @@ class SlashCommandRouter:
         new_name = args[1]
 
         try:
-            actions = self.renamer.prepare_single_rename(
-                query=query,
-                new_name=new_name,
-                start_dir=str(repl_instance.cwd)
-            )
+            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}'..."):
+                actions = self.renamer.prepare_single_rename(
+                    query=query,
+                    new_name=new_name,
+                    start_dir=str(repl_instance.cwd)
+                )
             if not actions:
                 AutobotTheme.render_warning(f"No file matching query '{query}' was found to rename.")
                 return
@@ -130,7 +132,8 @@ class SlashCommandRouter:
             PlanRenderer.render_preview(actions, dry_run=False)
             
             # Execute rename actions
-            executed, errors = self.renamer.execute_rename(actions)
+            with AutobotTheme.status("Executing file rename operation..."):
+                executed, errors = self.renamer.execute_rename(actions)
             if executed:
                 session_id = self.logger.log_session(executed)
                 AutobotTheme.render_success(f"Renamed {len(executed)} item(s) successfully! Logged in transaction session [dim]{session_id}[/dim]")
@@ -152,11 +155,12 @@ class SlashCommandRouter:
         target_dir = args[1]
 
         try:
-            actions = self.mover.prepare_move(
-                query=query,
-                target_dir=target_dir,
-                start_dir=str(repl_instance.cwd)
-            )
+            with AutobotTheme.status(f"Preparing relocation for '{query}' -> '{target_dir}'..."):
+                actions = self.mover.prepare_move(
+                    query=query,
+                    target_dir=target_dir,
+                    start_dir=str(repl_instance.cwd)
+                )
             if not actions:
                 AutobotTheme.render_warning(f"No files/folders matching '{query}' found to move.")
                 return
@@ -164,7 +168,8 @@ class SlashCommandRouter:
             PlanRenderer.render_preview(actions, dry_run=False)
             
             # Execute move actions
-            executed, errors = self.mover.execute_move(actions)
+            with AutobotTheme.status("Executing file move operation..."):
+                executed, errors = self.mover.execute_move(actions)
             if executed:
                 session_id = self.logger.log_session(executed)
                 AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{target_dir}'! Transaction session: [dim]{session_id}[/dim]")

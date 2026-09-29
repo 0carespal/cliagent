@@ -154,9 +154,9 @@ def ask_command(
     """
     🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud Gemini.
     """
-    console.print(f"[cyan]Parsing request with AI engine:[/cyan] '{prompt}'...")
     ai_parser = AIIntentParser()
-    intent_data, provider_name = ai_parser.parse(prompt)
+    with AutobotTheme.status(f"AI parsing natural language request: '{prompt}'..."):
+        intent_data, provider_name = ai_parser.parse(prompt)
 
     if not intent_data:
         AutobotTheme.render_error(f"AI Engine failed to parse request using provider: {provider_name}")
