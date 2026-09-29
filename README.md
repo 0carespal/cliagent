@@ -1,18 +1,22 @@
 # 🤖 Autobot — Intelligent File & Folder Management CLI Agent
 
-`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy string search**, **dry-run preview tables**, **transaction history undo logs**, and a **hybrid interface** supporting CLI flags, interactive menus, and natural language command processing via Local LLMs (like **Gemma / Qwen**) or Cloud LLM (like **Gemini,Chatgpt**etc).
+`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. Inspired by **Antigravity CLI** and **Aider**, it features a **persistent interactive REPL shell**, **tab auto-completion**, **first-class slash commands (`/`)**, **Antigravity-styled color theme**, **dry-run preview action cards**, **transaction history undo logs**, and **natural language AI processing** powered by Local LLMs (Gemma 4B / Qwen 4B) or Cloud Gemini APIs.
 
 ---
 
 ## 🌟 Key Features
 
+* **🔄 Persistent REPL Shell (`autobot › `)**: Continuous live terminal session powered by `prompt_toolkit`. Remembers working directory, active model provider, and undo history across inputs.
+* **⚡ Tab Auto-Completion**: Context-aware completion for slash commands (`/lo` ➜ `/locate`) and local file system paths.
+* **🎨 Antigravity CLI Theme**: Option A ASCII box banner with rounded borders (`box.ROUNDED`), Cyan/Magenta/Slate color palette, and dynamic session status badges.
+* **⚡ First-Class Slash Commands**: Predictable 0ms deterministic commands (`/locate`, `/rename`, `/move`, `/undo`, `/model`, `/status`, `/help`, `/clear`, `/exit`).
 * **🔍 Smart Fuzzy Search**: Locates files/folders across directories using similarity scoring (`rapidfuzz`). Typing `invoice` matches `Annual_Invoice_2024.pdf`.
-* **⚡ In-Place Directory Pruning**: Automatically skips scanning junk/system folders (`.git`, `node_modules`, `AppData`, `__pycache__`, `$Recycle.Bin`) for lightning-fast performance.
-* **✏️ Single & Bulk Rename**: Rename individual items or apply pattern transformations (prefix, suffix, find & replace, sequence numbering like `01`, `02`, `snake_case`, `kebab-case`).
-* **🚚 Destination Folder Protection**: Verifies target destination directories. If a target folder is missing, `Autobot` halts and prompts: *"Destination directory does not exist. Create folder? [y/N]"*. It creates folders **only** if confirmed with `y` or `Y`.
-* **🔍 Dry-Run Preview Mode (`--dry-run`)**: Displays a color-coded Rich table of proposed actions, source/target paths, and warnings without touching your disk.
-* **↩️ Transaction History & Undo (`autobot undo`)**: Automatically logs file operations to `~/.autobot/history.json`. Run `python main.py undo` to reverse the last move or rename batch.
-* **🤖 Natural Language AI Engine (`autobot ask`)**: Accepts plain English sentences and converts them into structured actions using local Ollama/LM Studio LLMs (`Gemma 4B`, `Qwen 4B`) or Cloud Gemini APIs.
+* **✏️ Single & Bulk Rename**: Rename individual items or apply pattern transformations (prefix, suffix, case formatting like `snake_case`, `kebab-case`, sequence numbering `01`, `02`).
+* **🚚 Target Destination Guardrails**: Verifies destination directories before moving. If missing, prompts the user interactively (`Create directory? [y/N]`) with an opt-in policy.
+* **📇 Action Cards & InquirerPy Confirmations**: Displays formatted preview cards and interactive arrow-key confirmation menus (`[✓] Execute actions now` vs `[✖] Cancel operation`) before modifying disk.
+* **↩️ Transaction History & Undo (`/undo`)**: Logs every file operation to `~/.autobot/history.json`. Run `/undo` to roll back the last move or rename transaction batch.
+* **⏳ Live Animated Spinners**: Renders Rich animated spinners (`⠋ Searching directory tree...`, `⠙ AI parsing natural language request...`) for seamless visual feedback.
+* **🤖 Dual AI Engine (Local / Cloud)**: Supports offline Local LLMs (Ollama / LM Studio `Gemma 4B`, `Qwen 4B`) and Cloud Gemini APIs.
 
 ---
 
@@ -28,62 +32,43 @@ pip install -r requirements.txt
 
 ---
 
-## 💻 Usage & Command Reference
+## 💻 Interactive REPL & Slash Commands
 
-### 1. Locate / Search Files & Folders
-Search recursively from any starting directory with optional extension or size filters:
-```bash
-# Basic search
-python main.py locate "report"
+Launch the interactive REPL shell by running `main.py` without arguments:
 
-# Search in specific directory with extension filter
-python main.py locate "invoice" --start-dir "~/Downloads" --ext pdf png
-```
-
-### 2. Move Files / Folders
-Move files to a target directory with optional dry-run preview:
-```bash
-# Preview move actions without modifying disk
-python main.py move "report" "./Archive" --dry-run
-
-# Execute move
-python main.py move "report" "./Archive"
-```
-
-### 3. Rename Files / Folders
-Single or bulk rename with case formatting or sequence numbering:
-```bash
-# Single rename
-python main.py rename "old_draft.txt" --new-name "final_report.txt"
-
-# Bulk rename with prefix and snake_case formatting
-python main.py rename "document" --prefix "2024_" --case "snake"
-
-# Sequence numbering (photo_01.jpg, photo_02.jpg)
-python main.py rename "IMG" --seq "photo_"
-```
-
-### 4. Natural Language AI Assistant (`ask`)
-Talk to `Autobot` in plain English:
-```bash
-python main.py ask "Find all PNG files in Downloads and move them to Pictures/PNGs"
-```
-
-### 5. Undo Last Operation
-Reverse the last batch move or rename transaction:
-```bash
-python main.py undo
-```
-
-### 6. Interactive Menu Mode
-Run `Autobot` with no arguments to launch the interactive terminal menu:
 ```bash
 python main.py
 ```
 
+### 🎯 Slash Command Cheat-Sheet
+
+| Slash Command | Description | Example Usage |
+| :--- | :--- | :--- |
+| **`/locate`** | Locates files/folders matching query using fuzzy search | `/locate "report" --ext pdf` |
+| **`/rename`** | Renames a matching file or folder | `/rename "draft.txt" "final.txt"` |
+| **`/move`** | Moves matching files/folders to a target directory | `/move "image" "./Pictures"` |
+| **`/undo`** | Reverses the last move or rename transaction session | `/undo` |
+| **`/model`** | Toggles/switches between Local LLM (Ollama) and Cloud (Gemini) | `/model cloud` |
+| **`/status`** | Displays a summary card of active folder, model, and undo stack | `/status` |
+| **`/help`** | Displays the interactive command cheat-sheet card | `/help` |
+| **`/clear`** | Clears the terminal screen canvas | `/clear` |
+| **`/exit`** | Exits the Autobot REPL session | `/exit` |
+
 ---
 
-## 🤖 Local LLM Setup (Gemma 4B / Qwen 4B)
+## 💬 Natural Language AI Commands
+
+Type plain English sentences directly into the `autobot › ` prompt (or via `python main.py ask "..."`):
+
+```text
+autobot › find all PNG files in Downloads and move them to Pictures/PNGs
+autobot › rename draft_document.txt to annual_report_2024.txt
+autobot › move all reports larger than 10MB to Archive
+```
+
+---
+
+## 🤖 Local LLM Setup (Ollama / LM Studio)
 
 `Autobot` supports offline local AI execution via **Ollama** or **LM Studio**:
 
@@ -92,11 +77,21 @@ python main.py
    ```bash
    ollama run gemma2:4b
    ```
-3. `Autobot` automatically detects the local OpenAI-compatible endpoint at `http://localhost:11434/v1` and routes natural language prompts to your local model!
+3. `Autobot` automatically connects to the local endpoint at `http://localhost:11434/v1` and routes natural language prompts offline!
 
-*(Optional)* To use Cloud LLMs instead, set your API key environment variable:
+*(Optional)* To use Cloud LLMs instead, set your API key:
 ```bash
 set LLM_API_KEY="your-api-key-here"
+```
+
+---
+
+## 🧪 Running Automated Integration Tests
+
+Run the full end-to-end integration test suite:
+
+```bash
+python tests/test_autobot.py
 ```
 
 ---
@@ -105,21 +100,31 @@ set LLM_API_KEY="your-api-key-here"
 
 ```text
 cliagent/
+├── agent.md              # Project Blueprint, Architecture & 14-Phase Roadmap
 ├── config.py             # System configuration, ignored folders, and LLM endpoints
+├── main.py               # Main CLI launcher & Typer subcommand entry point
+│
 ├── core/
-│   ├── finder.py         # Directory walker, rapidfuzz fuzzy search, & metadata filters
-│   ├── renamer.py        # Single/bulk rename, pattern replacement, & collision check
-│   ├── mover.py          # Safe file relocation & missing directory prompt logic
-│   └── safety.py         # Rich dry-run preview renderer & JSON transaction undo log
+│   ├── finder.py         # Recursive walker, rapidfuzz fuzzy search, & metadata filters
+│   ├── renamer.py        # Single/bulk rename, pattern replacement, & case converters
+│   ├── mover.py          # Safe file relocation & missing directory verification
+│   ├── safety.py         # Rich preview table renderer & JSON transaction undo log
+│   └── slash_commands.py # Quote-aware shlex parser & slash command router
+│
 ├── ai/
 │   ├── base.py           # System prompts & JSON response sanitization
-│   ├── local_llm.py      # Ollama / LM Studio (Gemma/Qwen or any other) HTTP client
-│   ├── cloud_llm.py      # Cloud LLM API client
-│   └── intent_parser.py  # Unified AI provider router
+│   ├── local_llm.py      # Ollama / LM Studio (Gemma/Qwen) HTTP client
+│   ├── cloud_llm.py      # Cloud LLM API client (Gemini / OpenAI)
+│   └── intent_parser.py  # Unified AI provider router & intent extractor
+│
 ├── ui/
-│   ├── tables.py         # Rich terminal tables & file size formatters
-│   └── interactive.py    # Terminal prompts & fallback main menu
-└── main.py               # Main CLI entry point & Typer subcommand parser
+│   ├── theme.py          # Antigravity CLI palette, Option A box banner & status spinners
+│   ├── repl.py           # Persistent REPL prompt loop with tab completion
+│   ├── tables.py         # Rich search result formatting tables
+│   └── interactive.py    # InquirerPy interactive confirmation selection dialogs
+│
+└── tests/
+    └── test_autobot.py   # End-to-end automated integration test suite
 ```
 
 ---
