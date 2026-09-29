@@ -1,29 +1,44 @@
+"""
+Main Entry Point and Launcher for Autobot CLI.
+Launches the persistent Antigravity-style REPL shell when run with no arguments,
+or parses Typer subcommands for direct CLI execution.
+"""
+
 import sys
 import io
-
-# Force UTF-8 encoding on Windows terminal streams
-if hasattr(sys.stdout, 'buffer'):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-if hasattr(sys.stderr, 'buffer'):
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
 from pathlib import Path
 from typing import List, Optional
 import typer
-from rich.console import Console
 
-from core.finder import FileFinder
-from core.renamer import FileRenamer, RenameAction
-from core.mover import FileMover, MoveAction
-from core.safety import TransactionLogger, PlanRenderer
-from ai.intent_parser import AIIntentParser
+from ui.theme import AutobotTheme
+from ui.repl import AutobotREPL
 from ui.tables import TableRenderer
-from ui.interactive import InteractiveUI
+from core.finder import FileFinder
+from core.renamer import FileRenamer
+from core.mover import FileMover
+from core.safety import TransactionLogger, PlanRenderer
+from core.slash_commands import SlashCommandRouter
+from ai.intent_parser import AIIntentParser
+
+# Ensure UTF-8 encoding on Windows console streams safely
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 
 app = typer.Typer(help="🤖 Autobot — Intelligent File & Folder Management CLI Agent")
-console = Console()
+console = AutobotTheme.get_console()
 finder = FileFinder()
+renamer = FileRenamer()
+mover = FileMover()
 logger = TransactionLogger()
+slash_router = SlashCommandRouter()
 
 
 @app.command("locate")
@@ -52,129 +67,88 @@ def locate_command(
         )
         TableRenderer.render_search_results(results, query)
     except Exception as e:
-        console.print(f"[bold red]Error during search: {e}[/bold red]")
+        AutobotTheme.render_error(f"Search error: {e}")
 
 
 @app.command("rename")
 def rename_command(
     query: str = typer.Argument(..., help="Search query or file to rename"),
-    new_name: Optional[str] = typer.Option(None, "--new-name", "-n", help="New filename (for single rename)"),
-    prefix: str = typer.Option("", "--prefix", help="Prefix to add to filenames"),
-    suffix: str = typer.Option("", "--suffix", help="Suffix to add to filenames"),
-    find_str: str = typer.Option("", "--find", help="Substring to find"),
-    replace_str: str = typer.Option("", "--replace", help="Replacement substring"),
-    case: Optional[str] = typer.Option(None, "--case", "-c", help="Case conversion: snake, kebab, lower, upper"),
-    seq_prefix: Optional[str] = typer.Option(None, "--seq", help="Sequence numbering prefix (e.g. 'photo_')"),
-    start_dir: str = typer.Option(".", "--start-dir", "-s", help="Directory to search in"),
-    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
+    new_name: Optional[str] = typer.Option(None, "--new-name", "-n", help="New filename for single rename"),
+    prefix: Optional[str] = typer.Option(None, "--prefix", "-p", help="Prefix for bulk rename"),
+    suffix: Optional[str] = typer.Option(None, "--suffix", "-s", help="Suffix for bulk rename"),
+    case: Optional[str] = typer.Option(None, "--case", "-c", help="Case conversion: snake, kebab, camel, lower"),
+    seq: Optional[str] = typer.Option(None, "--seq", help="Sequence pattern: e.g. photo_"),
+    start_dir: str = typer.Option(".", "--start-dir", help="Directory to search for items to rename"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without modifying disk"),
 ):
     """
     ✏️ Renames single or multiple files/folders matching a query.
     """
-    results = finder.search(query=query, start_dir=start_dir)
-    if not results:
-        console.print(f"[yellow]No items found matching '{query}'.[/yellow]")
-        return
+    try:
+        if new_name:
+            actions = renamer.prepare_single_rename(query=query, new_name=new_name, start_dir=start_dir)
+        elif any([prefix, suffix, case, seq]):
+            actions = renamer.prepare_bulk_rename(
+                query=query, start_dir=start_dir, prefix=prefix, suffix=suffix, case_type=case, seq_pattern=seq
+            )
+        else:
+            AutobotTheme.render_warning("Specify --new-name or bulk pattern flags (--prefix, --suffix, --case, --seq).")
+            return
 
-    paths = [r.path for r in results]
+        if not actions:
+            AutobotTheme.render_warning(f"No files matching '{query}' found to rename.")
+            return
 
-    if new_name and len(paths) == 1:
-        actions = [FileRenamer.prepare_single_rename(paths[0], new_name)]
-    else:
-        actions = FileRenamer.prepare_bulk_rename(
-            items=paths,
-            prefix=prefix,
-            suffix=suffix,
-            find_str=find_str,
-            replace_str=replace_str,
-            case_format=case,
-            sequence_prefix=seq_prefix
-        )
+        PlanRenderer.render_preview(actions, dry_run=dry_run)
+        if dry_run:
+            return
 
-    # Render Preview Table
-    PlanRenderer.render_preview(actions, dry_run=dry_run)
-
-    if dry_run:
-        console.print("[dim][Dry-Run Mode: No disk changes were executed.][/dim]")
-        return
-
-    # Check for valid actions to execute
-    valid_actions = [a for a in actions if a.status == "OK"]
-    if not valid_actions:
-        console.print("[yellow]No valid actions to execute.[/yellow]")
-        return
-
-    if InteractiveUI.prompt_execution_confirmation(len(valid_actions)):
-        successful, failed = FileRenamer.execute_rename_actions(valid_actions)
-        if successful:
-            session_id = logger.log_session(successful)
-            console.print(f"[bold green]✓ Successfully renamed {len(successful)} item(s)![/bold green] (Undo ID: {session_id})")
-        if failed:
-            console.print(f"[bold red]✖ Failed to rename {len(failed)} item(s).[/bold red]")
+        executed, errors = renamer.execute_rename(actions)
+        if executed:
+            session_id = logger.log_session(executed)
+            AutobotTheme.render_success(f"Renamed {len(executed)} item(s)! Logged in session [dim]{session_id}[/dim]")
+        if errors:
+            for err in errors:
+                AutobotTheme.render_error(err)
+    except Exception as e:
+        AutobotTheme.render_error(f"Rename error: {e}")
 
 
 @app.command("move")
 def move_command(
-    query: str = typer.Argument(..., help="Search query for files to move"),
-    target_dir: str = typer.Argument(..., help="Destination directory path"),
-    start_dir: str = typer.Option(".", "--start-dir", "-s", help="Directory to search in"),
+    query: str = typer.Argument(..., help="Search query or wildcard for items to move"),
+    target_dir: str = typer.Argument(..., help="Destination target directory path"),
+    start_dir: str = typer.Option(".", "--start-dir", "-s", help="Directory to search for items to move"),
     ext: Optional[List[str]] = typer.Option(None, "--ext", "-e", help="Extension filters"),
-    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without modifying disk"),
 ):
     """
     🚚 Moves single or multiple files/folders to a target directory.
     """
-    results = finder.search(query=query, start_dir=start_dir, extensions=ext)
-    if not results:
-        console.print(f"[yellow]No items found matching '{query}'.[/yellow]")
-        return
-
-    dest_path = Path(target_dir).resolve()
-    sources = [r.path for r in results]
-
-    actions = FileMover.prepare_move_actions(sources=sources, target_dir=dest_path)
-
-    # Render Preview Table
-    PlanRenderer.render_preview(actions, dry_run=dry_run)
-
-    if dry_run:
-        console.print("[dim][Dry-Run Mode: No disk changes were executed.][/dim]")
-        return
-
-    # Handle Missing Destination Directory Prompt
-    requires_dest = any(a.requires_dest_creation for a in actions)
-    if requires_dest and not dest_path.exists():
-        user_agreed = InteractiveUI.prompt_create_destination(dest_path)
-        if user_agreed:
-            created = FileMover.create_destination_directory(dest_path, user_confirmed=True)
-            if created:
-                console.print(f"[bold green]✓ Destination directory created:[/bold green] {dest_path}")
-                # Re-evaluate actions after creating directory
-                actions = FileMover.prepare_move_actions(sources=sources, target_dir=dest_path)
-            else:
-                console.print("[bold red]Failed to create target directory. Aborting move.[/bold red]")
-                return
-        else:
-            console.print("[yellow]Move cancelled: Target directory was not created.[/yellow]")
+    try:
+        actions = mover.prepare_move(query=query, target_dir=target_dir, start_dir=start_dir, extensions=ext)
+        if not actions:
+            AutobotTheme.render_warning(f"No files matching '{query}' found to move.")
             return
 
-    valid_actions = [a for a in actions if a.status == "OK"]
-    if not valid_actions:
-        console.print("[yellow]No valid actions to execute.[/yellow]")
-        return
+        PlanRenderer.render_preview(actions, dry_run=dry_run)
+        if dry_run:
+            return
 
-    if InteractiveUI.prompt_execution_confirmation(len(valid_actions)):
-        successful, failed = FileMover.execute_move_actions(valid_actions)
-        if successful:
-            session_id = logger.log_session(successful)
-            console.print(f"[bold green]✓ Successfully moved {len(successful)} item(s)![/bold green] (Undo ID: {session_id})")
-        if failed:
-            console.print(f"[bold red]✖ Failed to move {len(failed)} item(s).[/bold red]")
+        executed, errors = mover.execute_move(actions)
+        if executed:
+            session_id = logger.log_session(executed)
+            AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{target_dir}'! Session: [dim]{session_id}[/dim]")
+        if errors:
+            for err in errors:
+                AutobotTheme.render_error(err)
+    except Exception as e:
+        AutobotTheme.render_error(f"Move error: {e}")
 
 
 @app.command("ask")
 def ask_command(
-    prompt: str = typer.Argument(..., help="Natural language request (e.g. 'Move all PNGs from Desktop to Pictures')"),
+    prompt: str = typer.Argument(..., help="Natural language request"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
 ):
     """
@@ -185,33 +159,32 @@ def ask_command(
     intent_data, provider_name = ai_parser.parse(prompt)
 
     if not intent_data:
-        console.print(f"[bold red]AI Engine failed to parse request using provider: {provider_name}[/bold red]")
+        AutobotTheme.render_error(f"AI Engine failed to parse request using provider: {provider_name}")
         return
 
-    console.print(f"[bold green]✓ Intent Parsed using {provider_name}:[/bold green]")
+    AutobotTheme.render_success(f"Intent Parsed using provider: {provider_name}")
     action = intent_data.get("action")
     query = intent_data.get("query", "*")
     source_dir = intent_data.get("source_dir") or "."
     target_dir = intent_data.get("target_dir")
     new_name = intent_data.get("new_name")
     filters = intent_data.get("filters") or {}
-
     exts = filters.get("extensions")
 
     if action == "locate":
         locate_command(query=query, start_dir=source_dir, ext=exts)
     elif action == "rename":
         if not new_name:
-            console.print("[red]AI error: Missing target rename name.[/red]")
+            AutobotTheme.render_error("AI error: Missing target rename name.")
             return
         rename_command(query=query, new_name=new_name, start_dir=source_dir, dry_run=dry_run)
     elif action == "move":
         if not target_dir:
-            console.print("[red]AI error: Missing target move directory.[/red]")
+            AutobotTheme.render_error("AI error: Missing target move directory.")
             return
         move_command(query=query, target_dir=target_dir, start_dir=source_dir, ext=exts, dry_run=dry_run)
     else:
-        console.print(f"[yellow]Unknown action parsed by AI: {action}[/yellow]")
+        AutobotTheme.render_warning(f"Unknown action parsed by AI: {action}")
 
 
 @app.command("undo")
@@ -221,43 +194,40 @@ def undo_command():
     """
     last = logger.get_last_session()
     if not last:
-        console.print("[yellow]No transaction history found to undo.[/yellow]")
+        AutobotTheme.render_warning("No transaction history found to undo.")
         return
 
-    console.print(f"[cyan]Undoing last session:[/cyan] {last['session_id']} ({len(last['records'])} actions)")
+    console.print(f"[cyan]Undoing last session:[/cyan] [bold]{last['session_id']}[/bold] ({len(last['records'])} actions)...")
     reversed_count, errors = logger.undo_last_session()
 
     if reversed_count > 0:
-        console.print(f"[bold green]✓ Successfully restored {reversed_count} file(s) to original state![/bold green]")
+        AutobotTheme.render_success(f"Successfully restored {reversed_count} file(s) to original state!")
     if errors:
         for err in errors:
-            console.print(f"[bold red]✖ {err}[/bold red]")
+            AutobotTheme.render_error(err)
+
+
+def repl_input_handler(user_input: str, repl_instance: AutobotREPL) -> None:
+    """
+    Dispatches input received inside the REPL loop:
+    1. First checks if input is a slash command (/locate, /rename, /move, /undo, /model, /status, /help).
+    2. If not a slash command, routes input to AI Intent Parser for natural language processing.
+    """
+    # Attempt to handle as slash command
+    if slash_router.dispatch(user_input, repl_instance):
+        return
+
+    # Fallback to AI Natural Language Assistant
+    ask_command(prompt=user_input)
 
 
 def main_launcher():
     """
-    Fallback launcher: If no CLI subcommands are passed, opens the Interactive Menu.
+    Launcher: If no CLI subcommands are passed, launches the persistent Autobot REPL session loop.
     """
     if len(sys.argv) == 1:
-        choice = InteractiveUI.show_interactive_menu()
-        if choice == "1":
-            q = typer.prompt("Enter search query")
-            locate_command(query=q)
-        elif choice == "2":
-            q = typer.prompt("Enter search query for file to rename")
-            n = typer.prompt("Enter new filename")
-            rename_command(query=q, new_name=n)
-        elif choice == "3":
-            q = typer.prompt("Enter search query for file(s) to move")
-            t = typer.prompt("Enter target destination directory")
-            move_command(query=q, target_dir=t)
-        elif choice == "4":
-            p = typer.prompt("Enter your natural language prompt")
-            ask_command(prompt=p)
-        elif choice == "5":
-            undo_command()
-        elif choice == "6":
-            console.print("[cyan]Goodbye![/cyan]")
+        repl = AutobotREPL(handler_callback=repl_input_handler)
+        repl.run()
     else:
         app()
 
