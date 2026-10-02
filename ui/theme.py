@@ -54,7 +54,7 @@ class AutobotTheme:
     def render_banner(
         cls,
         version: str = "1.0.0",
-        model_name: str = "Gemma 4B (Local)",
+        model_name: str = "No model available",
         cwd: Optional[Path] = None,
         undo_count: int = 0
     ) -> None:
@@ -72,8 +72,9 @@ class AutobotTheme:
         banner_text.append("\n  📁 Directory: ", style="bold white")
         banner_text.append(f"{cwd_path}", style="dim cyan")
         
+        model_style = "dim yellow" if model_name == "No model available" else "bold yellow"
         banner_text.append("\n  🧠 LLM Model: ", style="bold white")
-        banner_text.append(f"[{model_name}]", style="bold yellow")
+        banner_text.append(f"[{model_name}]", style=model_style)
         
         banner_text.append("\n  ↩️ Undo Stack: ", style="bold white")
         banner_text.append(f"{undo_count} session(s) logged", style="green" if undo_count > 0 else "dim white")
@@ -87,13 +88,15 @@ class AutobotTheme:
         banner_text.append(" • ", style="dim white")
         banner_text.append("/undo", style="bold cyan")
         banner_text.append(" • ", style="dim white")
+        banner_text.append("/key", style="bold cyan")
+        banner_text.append(" • ", style="dim white")
         banner_text.append("/model", style="bold cyan")
         banner_text.append(" • ", style="dim white")
         banner_text.append("/help", style="bold cyan")
 
         panel = Panel(
             banner_text,
-            title="[bold magenta]Antigravity CLI Workspace[/bold magenta]",
+            title="[bold magenta]Autobot CLI[/bold magenta]",
             subtitle="[dim white]Type natural language or /help for slash commands[/dim white]",
             border_style="cyan",
             box=box.ROUNDED,
@@ -117,7 +120,7 @@ class AutobotTheme:
         table.add_column(justify="right", ratio=2)
 
         dir_str = f"📁 [dim cyan]{cwd.resolve()}[/dim cyan]"
-        model_str = f"🧠 [bold yellow]{model_name}[/bold yellow]"
+        model_str = f"🧠 [dim yellow]{model_name}[/dim yellow]" if model_name == "No model available" else f"🧠 [bold yellow]{model_name}[/bold yellow]"
         undo_str = f"↩️ [green]{undo_count} session(s)[/green]" if undo_count > 0 else "↩️ [dim]0 sessions[/dim]"
 
         table.add_row(dir_str, model_str, undo_str)

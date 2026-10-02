@@ -30,6 +30,7 @@ class AutobotCompleter(Completer):
         "/rename",
         "/move",
         "/undo",
+        "/key",
         "/model",
         "/status",
         "/help",
@@ -55,6 +56,43 @@ class AutobotCompleter(Completer):
                 yield completion
 
 
+def detect_active_model() -> str:
+    """
+    Dynamically checks if an LLM has been configured.
+    Returns:
+      - 'Cloud LLM (<model>)' if cloud API key is configured
+      - 'Local LLM (<model>)' if a local model was explicitly configured and is reachable
+      - 'No model available' if no model has been configured
+    """
+    import os
+    import config
+
+    cfg = config.load_user_config()
+
+    # 1. Check if user configured a Cloud API key
+    api_key = config.LLM_API_KEY or cfg.get("llm_api_key", "")
+    if api_key and api_key.strip():
+        model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
+        return f"Cloud LLM ({model_name})"
+
+    # 2. Check if user explicitly configured a local model
+    local_model = (
+        os.getenv("AUTOBOT_LOCAL_LLM_MODEL")
+        or os.getenv("CLIAGENT_LOCAL_LLM_MODEL")
+        or cfg.get("local_llm_model")
+    )
+    if local_model and local_model.strip():
+        try:
+            from ai.local_llm import LocalLLMClient
+            local_client = LocalLLMClient(model_name=local_model)
+            if local_client.is_available():
+                return f"Local LLM ({local_model})"
+        except Exception:
+            pass
+
+    return "No model available"
+
+
 class AutobotREPL:
     """
     Interactive REPL session manager maintaining session state, prompt history,
@@ -64,11 +102,11 @@ class AutobotREPL:
     def __init__(
         self,
         handler_callback: Optional[Callable[[str, "AutobotREPL"], None]] = None,
-        model_name: str = "Gemma 4B (Local)"
+        model_name: Optional[str] = None
     ):
         self.handler_callback = handler_callback
         self.cwd = Path.cwd()
-        self.model_name = model_name
+        self.model_name = model_name if model_name is not None else detect_active_model()
         self.logger = TransactionLogger()
         
         # Setup history directory ~/.autobot/

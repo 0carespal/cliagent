@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Any
 
+import config
 from ui.theme import AutobotTheme
 from ui.tables import TableRenderer
 from core.finder import FileFinder
@@ -57,6 +58,8 @@ class SlashCommandRouter:
             self.handle_move(args, repl_instance)
         elif cmd == "/undo":
             self.handle_undo(repl_instance)
+        elif cmd == "/key":
+            self.handle_key(args, repl_instance)
         elif cmd == "/model":
             self.handle_model(args, repl_instance)
         elif cmd == "/status":
@@ -201,24 +204,69 @@ class SlashCommandRouter:
             for err in errors:
                 AutobotTheme.render_error(err)
 
+    def handle_key(self, args: List[str], repl_instance: Any) -> None:
+        """
+        🔑 Handles /key [api_key]
+        Views or sets Cloud LLM API key.
+        """
+        if not args:
+            cfg = config.load_user_config()
+            current_key = config.LLM_API_KEY or cfg.get("llm_api_key", "")
+            if current_key:
+                masked = current_key[:3] + "..." + current_key[-4:] if len(current_key) > 7 else "***"
+                AutobotTheme.render_card(
+                    title="🔑 Cloud LLM API Key Status",
+                    content=f"API Key is configured: [bold green]{masked}[/bold green]\nTarget Model: [bold yellow]{config.LLM_MODEL}[/bold yellow]\nEndpoint: [dim]{config.LLM_BASE_URL}[/dim]",
+                    style="green"
+                )
+            else:
+                AutobotTheme.render_warning(
+                    "No Cloud LLM API key configured.\n"
+                    "Set one via: [bold cyan]/key <YOUR_API_KEY>[/bold cyan] or export [bold]LLM_API_KEY[/bold] in your environment."
+                )
+            return
+
+        new_key = args[0].strip()
+        config.save_user_config("llm_api_key", new_key)
+        config.LLM_API_KEY = new_key
+
+        # If previously no model was available, switch active session model to Cloud LLM
+        if hasattr(repl_instance, "model_name") and repl_instance.model_name == "No model available":
+            repl_instance.set_model(f"Cloud LLM ({config.LLM_MODEL})")
+
+        masked = new_key[:3] + "..." + new_key[-4:] if len(new_key) > 7 else "***"
+        AutobotTheme.render_card(
+            title="🔑 API Key Configured",
+            content=f"Saved Cloud LLM API key: [bold green]{masked}[/bold green]\nTarget Model: [bold yellow]{config.LLM_MODEL}[/bold yellow]\nPersisted to: [dim]~/.autobot/config.json[/dim]",
+            style="green"
+        )
+
     def handle_model(self, args: List[str], repl_instance: Any) -> None:
         """
         🧠 Handles /model [local|cloud|model_name]
         Toggles or switches active LLM model provider.
         """
+        cfg = config.load_user_config()
+        cloud_model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
+        cloud_label = f"Cloud LLM ({cloud_model_name})"
+        local_label = f"Local LLM ({config.LOCAL_LLM_MODEL})"
+
         if not args:
             current = repl_instance.model_name
-            # Toggle between Local Gemma 4B and Cloud Gemini Flash
-            new_model = "Gemini 2.5 Flash (Cloud)" if "Local" in current else "Gemma 4B (Local)"
+            if current == "No model available":
+                from ai.cloud_llm import CloudLLMClient
+                new_model = cloud_label if CloudLLMClient().is_available() else local_label
+            else:
+                new_model = cloud_label if "Local" in current else local_label
             repl_instance.set_model(new_model)
             AutobotTheme.render_success(f"Switched LLM Provider model to: [bold yellow]{new_model}[/bold yellow]")
             return
 
         choice = args[0].lower()
         if choice in ["local", "gemma", "qwen", "ollama"]:
-            model_name = "Gemma 4B (Local)"
-        elif choice in ["cloud", "gemini", "api"]:
-            model_name = "Gemini 2.5 Flash (Cloud)"
+            model_name = local_label
+        elif choice in ["cloud", "openai", "remote", "api", "llm"]:
+            model_name = cloud_label
         else:
             model_name = args[0]
 
@@ -254,7 +302,8 @@ class SlashCommandRouter:
             "[bold cyan]/rename <query> <new_name>[/bold cyan]   ✏️  Rename matching file/folder\n"
             "[bold cyan]/move <query> <target_dir>[/bold cyan]   🚚 Move matching files to target folder\n"
             "[bold cyan]/undo[/bold cyan]                         ↩️  Reverse last move/rename transaction\n"
-            "[bold cyan]/model [local|cloud][/bold cyan]          🧠 Toggle between Local (Ollama) & Cloud (Gemini) LLM\n"
+            "[bold cyan]/key [api_key][/bold cyan]                🔑 View or configure Cloud LLM API key\n"
+            "[bold cyan]/model [local|cloud][/bold cyan]          🧠 Toggle between Local (Ollama) & Cloud LLM\n"
             "[bold cyan]/status[/bold cyan]                       📊 View current active folder, model, & undo stack\n"
             "[bold cyan]/clear[/bold cyan]                        🧹 Clear terminal screen canvas\n"
             "[bold cyan]/exit[/bold cyan]                         ❌ Exit Autobot REPL session\n\n"

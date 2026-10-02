@@ -1,7 +1,7 @@
 # Project Blueprint: CLI File Management Agent (`cliagent` / `Autobot`)
 
 ## 1. Executive Summary & Goal
-`cliagent` (Autobot) is an intelligent, cross-platform CLI tool built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy searching**, **safety preview dry-run tables**, **transaction history logging (undo)**, and an **Antigravity-inspired interactive shell** supporting slash commands, tab auto-completion, and natural language command parsing powered by local LLMs (Gemma 4B / Qwen 4B) or cloud APIs (Gemini).
+`cliagent` (Autobot) is an intelligent, cross-platform CLI tool built in Python for locating, renaming, and moving files/folders across directory trees. It features **fuzzy searching**, **safety preview dry-run tables**, **transaction history logging (undo)**, and an **Antigravity-inspired interactive shell** supporting slash commands, tab auto-completion, and natural language command parsing powered by local LLMs (Gemma 4B / Qwen 4B) or universal cloud LLMs (OpenAI, Groq, OpenRouter, DeepSeek, etc.).
 
 ---
 
@@ -46,7 +46,8 @@
    - `/rename <query>` — Single or bulk rename
    - `/move <query> <target>` — File relocation
    - `/undo` — Revert last transaction session
-   - `/model` — Toggle between local Gemma/Qwen and cloud Gemini
+   - `/key` — View or set Cloud LLM API key
+   - `/model` — Toggle between local Gemma/Qwen and cloud LLM
    - `/status` — View current session summary panel
    - `/clear` — Clear terminal screen
    - `/help` — Interactive command cheat-sheet card
@@ -72,7 +73,7 @@
 - **Terminal UI & Styling**: `rich`, `inquirerpy`, `prompt_toolkit`
 - **CLI Parsing**: `typer`
 - **Local LLM Integration**: OpenAI-compatible HTTP endpoint (`http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio) connecting to `Gemma 4B` or `Qwen 4B`.
-- **Cloud LLM Integration**: Gemini API with configurable environment API key.
+- **Cloud LLM Integration**: Universal OpenAI-compatible API (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, etc.) with configurable API key (`LLM_API_KEY`).
 
 ---
 
@@ -94,7 +95,7 @@ cliagent/
 ├── ai/
 │   ├── base.py           # LLM provider interface
 │   ├── local_llm.py      # Ollama / LM Studio client for Gemma/Qwen local models
-│   ├── cloud_llm.py      # Cloud API client (Gemini)
+│   ├── cloud_llm.py      # Universal Cloud LLM API client (OpenAI, Groq, OpenRouter, etc.)
 │   └── intent_parser.py  # Unified AI provider router
 │
 ├── ui/
@@ -115,7 +116,7 @@ cliagent/
 - [x] **Phase 3: Core Renamer Engine (`core/renamer.py`)**: Single and bulk rename operations & case converters.
 - [x] **Phase 4: Core Mover Engine (`core/mover.py`)**: Moving files, destination verification, & missing directory prompt logic.
 - [x] **Phase 5: Safety Subsystem (`core/safety.py`)**: Dry-run preview renderer (`rich` table) & undo log recorder/reverser.
-- [x] **Phase 6: AI Intent Engine (`ai/`)**: System prompt design & JSON tool parser for Gemma/Qwen/Gemini.
+- [x] **Phase 6: AI Intent Engine (`ai/`)**: System prompt design & JSON tool parser for Gemma/Qwen/Cloud LLMs.
 - [x] **Phase 7: CLI Interface & Baseline UI (`main.py` & `ui/`)**: `typer` subcommands & Rich output tables.
 - [x] **Phase 8: Centralized Theme & Styling Engine (`ui/theme.py`)**: Antigravity CLI color palette, Option A ASCII box banner renderer, Rich console tokens & error/warning cards.
 - [x] **Phase 9: Persistent REPL Shell Loop (`ui/repl.py`)**: `autobot › ` interactive shell, session state retention, signal handling (`Ctrl+C`/`Ctrl+D`), non-TTY fallback, & tab auto-completion for slash commands and file paths.

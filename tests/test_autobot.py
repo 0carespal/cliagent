@@ -117,7 +117,25 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertTrue(router.dispatch("/status", repl))
         self.assertTrue(router.dispatch("/help", repl))
         self.assertTrue(router.dispatch("/model cloud", repl))
-        self.assertEqual(repl.model_name, "Gemini 2.5 Flash (Cloud)")
+        self.assertTrue("Cloud LLM" in repl.model_name)
+
+        # Test /key command
+        self.assertTrue(router.dispatch("/key sk-testkey123456", repl))
+        import config
+        self.assertEqual(config.LLM_API_KEY, "sk-testkey123456")
+
+        # Clean up test key
+        if config.CONFIG_FILE_PATH.exists():
+            config.CONFIG_FILE_PATH.unlink()
+        config.LLM_API_KEY = ""
+
+    def test_default_model_detection(self):
+        """Verifies default REPL model detection handles absence of models cleanly."""
+        from ui.repl import detect_active_model
+        model = detect_active_model()
+        self.assertEqual(model, "No model available")
+        repl = AutobotREPL()
+        self.assertEqual(repl.model_name, "No model available")
 
 
 if __name__ == "__main__":

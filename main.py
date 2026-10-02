@@ -152,7 +152,7 @@ def ask_command(
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
 ):
     """
-    🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud Gemini.
+    🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud LLMs (OpenAI, Groq, OpenRouter, etc.).
     """
     ai_parser = AIIntentParser()
     with AutobotTheme.status(f"AI parsing natural language request: '{prompt}'..."):
