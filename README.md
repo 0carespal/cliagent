@@ -7,16 +7,19 @@
 ## 🌟 Key Features
 
 * **🔄 Persistent REPL Shell (`autobot › `)**: Continuous live terminal session powered by `prompt_toolkit`. Remembers working directory, active model provider, and undo history across inputs.
-* **⚡ Tab Auto-Completion**: Context-aware completion for slash commands (`/lo` ➜ `/locate`) and local file system paths.
-* **🎨 Antigravity CLI Theme**: Option A ASCII box banner with rounded borders (`box.ROUNDED`), Cyan/Magenta/Slate color palette, and dynamic session status badges.
-* **⚡ First-Class Slash Commands**: Predictable 0ms deterministic commands (`/locate`, `/rename`, `/move`, `/undo`, `/key`, `/model`, `/status`, `/help`, `/clear`, `/exit`).
-* **🔍 Smart Fuzzy Search**: Locates files/folders across directories using similarity scoring (`rapidfuzz`). Typing `invoice` matches `Annual_Invoice_2024.pdf`.
-* **✏️ Single & Bulk Rename**: Rename individual items or apply pattern transformations (prefix, suffix, case formatting like `snake_case`, `kebab-case`, sequence numbering `01`, `02`).
-* **🚚 Target Destination Guardrails**: Verifies destination directories before moving. If missing, prompts the user interactively (`Create directory? [y/N]`) with an opt-in policy.
-* **📇 Action Cards & InquirerPy Confirmations**: Displays formatted preview cards and interactive arrow-key confirmation menus (`[✓] Execute actions now` vs `[✖] Cancel operation`) before modifying disk.
-* **↩️ Transaction History & Undo (`/undo`)**: Logs every file operation to `~/.autobot/history.json`. Run `/undo` to roll back the last move or rename transaction batch.
-* **⏳ Live Animated Spinners**: Renders Rich animated spinners (`⠋ Searching directory tree...`, `⠙ AI parsing natural language request...`) for seamless visual feedback.
-* **🤖 Dual AI Engine (Local / Cloud BYOK)**: Supports offline Local LLMs (Ollama / LM Studio `Gemma 4B`, `Qwen 4B`) and universal Cloud LLMs (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, etc.).
+* **⚡ Tab Auto-Completion**: Context-aware completion for slash commands (`/lo` ➜ `/locate`, `/mo` ➜ `/models`) and local file system paths.
+* **🎨 Antigravity CLI Theme**: Full ASCII box banner with rounded borders (`box.ROUNDED`), Cyan/Magenta/Slate color palette, and dynamic session status badges.
+* **⚡ First-Class Slash Commands**: Predictable 0ms deterministic commands (`/locate`, `/rename`, `/move`, `/undo`, `/key`, `/model`, `/models`, `/status`, `/help`, `/clear`, `/exit`).
+* **🔍 Hybrid Search Engine (Wildcard Glob + RapidFuzz)**: Precision `fnmatch` wildcard and glob matching (`*.png`, `*invoice*`, `doc_??.pdf`) with 100% precision score, combined with RapidFuzz fuzzy similarity scoring for natural typos (`invoce` ➜ `annual_invoice_2024.pdf`).
+* **✏️ Case-Preserving Single & Bulk Rename**: Rename individual items or apply pattern transformations (`snake_case`, `kebab-case`, sequence numbering `01`, `02`). Safely handles case-only renames (`readme.md` ➜ `README.md`) on case-insensitive filesystems (Windows NTFS/FAT, macOS) using atomic two-step renaming without false collision errors.
+* **🚚 Cross-Volume Safe Relocation & Guardrails**: Moves files seamlessly across drives and partitions with `shutil.move`. Verifies destination directories before moving; if missing, interactively prompts the user (`Create destination directory? [y/N]`).
+* **📇 Action Cards & InquirerPy Confirmations**: Displays formatted Rich preview cards and interactive arrow-key confirmation menus (`[✓] Execute actions now` vs `[✖] Cancel operation`) before modifying disk. Supports `--yes` / `-y` flag for automated pipelines.
+* **↩️ Cross-Drive Undo Subsystem (`/undo`)**: Logs every file operation to `~/.autobot/history.json`. Run `/undo` to interactively review and reverse the last transaction batch, even across different Windows drive letters (`C:\` to `D:\`).
+* **⏳ Live Animated Spinners**: Renders Rich animated spinners (`⠋ Searching directory tree...`, `⠙ AI parsing natural language request...`) for fluid visual feedback.
+* **🤖 Dual AI Engine (Local Ollama Auto-Discovery & Universal Cloud BYOK)**:
+  - **Local Models**: Automatically queries `/v1/models` from local Ollama or LM Studio to auto-detect installed models (`qwen3.5`, `gemma4`, `llama3`). Switch dynamically with `/model list` and `/model <name>`.
+  - **Cloud Models**: Bring-Your-Own-Key (BYOK) for any OpenAI-compatible provider (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, etc.) with `/key <API_KEY>` and persistent config in `~/.autobot/config.json`.
+  - **Zero Assumptions**: Displays `[No model available]` cleanly until an AI engine is configured or detected.
 
 ---
 
@@ -44,12 +47,13 @@ python main.py
 
 | Slash Command | Description | Example Usage |
 | :--- | :--- | :--- |
-| **`/locate`** | Locates files/folders matching query using fuzzy search | `/locate "report" --ext pdf` |
-| **`/rename`** | Renames a matching file or folder | `/rename "draft.txt" "final.txt"` |
-| **`/move`** | Moves matching files/folders to a target directory | `/move "image" "./Pictures"` |
+| **`/locate`** | Locates files/folders matching wildcards (`*.png`) or fuzzy query | `/locate "*.pdf"` or `/locate "report"` |
+| **`/rename`** | Renames a matching file or folder (supports case-only renames) | `/rename "readme.md" "README.md"` |
+| **`/move`** | Moves matching files/folders to a target directory | `/move "*.png" "./Pictures"` |
 | **`/undo`** | Reverses the last move or rename transaction session | `/undo` |
 | **`/key`** | Views or configures your Cloud LLM API key | `/key sk-proj-...` |
-| **`/model`** | Toggles/switches between Local LLM (Ollama) and Cloud LLM | `/model cloud` |
+| **`/model list`** (or **`/models`**) | Lists all detected local Ollama models and cloud model status | `/model list` |
+| **`/model <name>`** | Switches active LLM model (e.g. `qwen3.5:4b`, `gemma4`, `cloud`) | `/model qwen3.5` or `/model cloud` |
 | **`/status`** | Displays a summary card of active folder, model, and undo stack | `/status` |
 | **`/help`** | Displays the interactive command cheat-sheet card | `/help` |
 | **`/clear`** | Clears the terminal screen canvas | `/clear` |
@@ -119,7 +123,7 @@ python tests/test_autobot.py
 
 ```text
 cliagent/
-├── agent.md              # Project Blueprint, Architecture & 14-Phase Roadmap
+├── agent.md              # Project Blueprint, Architecture & 19-Phase Roadmap
 ├── config.py             # System configuration, ignored folders, and LLM endpoints
 ├── main.py               # Main CLI launcher & Typer subcommand entry point
 │
