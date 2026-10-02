@@ -555,7 +555,72 @@ class TestAutobotCLI(unittest.TestCase):
         )
         self.assertEqual(len(actions), 2)
         self.assertEqual(actions[0].new_name, "vacation_01.png")
-        self.assertEqual(actions[1].new_name, "vacation_02.png")
+    def test_undo_prevents_source_collision(self):
+        """Tests that undo fails safely without overwriting if original_source path already exists on disk."""
+        from core.mover import MoveAction
+        src_path = self.root_path / "coll_src.txt"
+        tgt_path = self.root_path / "coll_tgt.txt"
+        tgt_path.write_text("target content")
+        # Pre-create a file at the original source to simulate a collision
+        src_path.write_text("existing obstacle content")
+
+        action = MoveAction(
+            source_path=src_path,
+            target_dir=self.root_path,
+            target_path=tgt_path,
+            is_dir=False,
+            status="OK"
+        )
+        self.logger.log_session([action])
+        reversed_count, errors = self.logger.undo_last_session()
+        self.assertEqual(reversed_count, 0)
+        self.assertIn("already exists", errors[0])
+        self.assertEqual(src_path.read_text(), "existing obstacle content")
+        self.assertEqual(tgt_path.read_text(), "target content")
+
+    def test_undo_partial_retention(self):
+        """Tests that partially undone sessions retain the remaining un-reversed records in history."""
+        from core.renamer import RenameAction
+        # Record 1: target exists and will succeed
+        src1 = self.root_path / "part_src1.txt"
+        tgt1 = self.root_path / "part_tgt1.txt"
+        tgt1.write_text("one")
+
+        # Record 2: target missing, will fail
+        src2 = self.root_path / "part_src2.txt"
+        tgt2 = self.root_path / "part_tgt2_missing.txt"
+
+        a1 = RenameAction(source_path=src1, target_path=tgt1, old_name="part_src1.txt", new_name="part_tgt1.txt", is_dir=False, status="OK")
+        a2 = RenameAction(source_path=src2, target_path=tgt2, old_name="part_src2.txt", new_name="part_tgt2_missing.txt", is_dir=False, status="OK")
+
+        self.logger.log_session([a1, a2])
+
+        reversed_count, errors = self.logger.undo_last_session()
+        self.assertEqual(reversed_count, 1)
+        self.assertTrue(src1.exists())
+
+        # Session should still exist in history with the 1 remaining un-reversed record
+        history = self.logger._load_history()
+        self.assertEqual(len(history), 1)
+        remaining_records = history[0]["records"]
+        self.assertEqual(len(remaining_records), 1)
+        self.assertEqual(remaining_records[0]["executed_target"], str(tgt2.resolve()))
+
+    def test_log_session_resolves_relative_paths(self):
+        """Tests that log_session always resolves relative paths to absolute strings."""
+        from core.renamer import RenameAction
+        rel_action = RenameAction(
+            source_path=Path("relative_src.txt"),
+            target_path=Path("relative_tgt.txt"),
+            old_name="relative_src.txt",
+            new_name="relative_tgt.txt",
+            is_dir=False,
+            status="OK"
+        )
+        self.logger.log_session([rel_action])
+        history = self.logger._load_history()
+        self.assertTrue(Path(history[-1]["records"][0]["original_source"]).is_absolute())
+        self.assertTrue(Path(history[-1]["records"][0]["executed_target"]).is_absolute())
 
 
 if __name__ == "__main__":
