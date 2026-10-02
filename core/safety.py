@@ -81,6 +81,13 @@ class TransactionLogger:
         history = self._load_history()
         return history[-1] if history else None
 
+    def get_history(self, limit: int = 10) -> List[Dict]:
+        """
+        Retrieves recent transaction sessions up to `limit`.
+        """
+        history = self._load_history()
+        return history[-limit:] if history else []
+
     def undo_last_session(self) -> Tuple[int, List[str]]:
         """
         Reverses the actions recorded in the last transaction session.

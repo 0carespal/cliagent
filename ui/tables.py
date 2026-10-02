@@ -2,7 +2,8 @@
 Rich Terminal Table Rendering Module for cliagent.
 Renders search results, action tables, and summary listings cleanly.
 """
-from typing import List
+from pathlib import Path
+from typing import List, Dict, Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -65,3 +66,47 @@ class TableRenderer:
             return f"{size_bytes / (1024 * 1024):.1f} MB"
         else:
             return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+
+    @staticmethod
+    def render_history_table(sessions: List[Dict[str, Any]]) -> None:
+        """
+        Displays transaction history sessions in a formatted Rich table.
+        """
+        if not sessions:
+            console.print(Panel("[dim]No past transaction history found.[/dim]", title="📜 Transaction History"))
+            return
+
+        table = Table(
+            title=f"📜 Transaction History ({len(sessions)} recent session(s))",
+            header_style="bold magenta",
+            border_style="dim"
+        )
+        table.add_column("Session ID", style="bold cyan", width=34)
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Actions", justify="center", width=12)
+        table.add_column("Summary / Sample", style="white", overflow="fold")
+
+        for s in reversed(sessions):
+            session_id = s.get("session_id", "unknown")
+            ts = s.get("timestamp", "")
+            if "T" in ts:
+                ts = ts.replace("T", " ")[:19]
+            records = s.get("records", [])
+            count_str = f"{len(records)} action(s)"
+
+            if records:
+                first = records[0]
+                action_type = first.get("action_type", "")
+                src_name = Path(first.get("original_source", "")).name
+                tgt_name = Path(first.get("executed_target", "")).name
+                if len(records) == 1:
+                    summary = f"[{action_type}] {src_name} → {tgt_name}"
+                else:
+                    summary = f"[{action_type}] {src_name} → {tgt_name} (+{len(records)-1} more)"
+            else:
+                summary = "Empty session"
+
+            table.add_row(session_id, ts, count_str, summary)
+
+        console.print(table)
+        console.print("[dim]💡 Tip: Run [bold cyan]/undo[/bold cyan] (or [bold cyan]autobot undo[/bold cyan]) to rollback the most recent session.[/dim]\n")

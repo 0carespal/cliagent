@@ -131,15 +131,15 @@ cliagent/
 - [x] **Phase 18: Search Engine Precision (Fnmatch Wildcard / Glob Matching)**: Integrate `fnmatch` into `FileFinder._compute_score` so wildcard patterns (`*.png`, `*invoice*`) receive 100% match scores instead of fuzzy penalties.
 - [x] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
 - [x] **Phase 20: Smart Path Alias Resolution, REPL AI Workspace Awareness & camelCase Renaming**: Centralized `resolve_user_path` resolving `~`, `Desktop`, `Downloads`, `Documents`, etc. against active REPL workspace `repl_instance.cwd`; added `cwd_override` to `ask_command` so AI natural language prompts execute in current folder; added `camel` and `title` case bulk transformation support; updated `/cd` slash command and test suite (12 unit tests passing).
-- [ ] **Phase 21: AI Parsing Resilience & Transaction History Viewer**: Robust JSON extraction in `ai/base.py` (braced extraction `{ ... }`), Cloud LLM fallback retry without `response_format` on 400 Bad Request, `/history` slash command and `autobot history` Typer CLI command.
+- [x] **Phase 21: AI Parsing Resilience & Transaction History Viewer**: Robust JSON extraction in `ai/base.py` (braced extraction `{ ... }` and regex fence stripping), Cloud LLM fallback retry without `response_format` on 400 Bad Request, `get_history` helper in `core/safety.py`, `render_history_table` in `ui/tables.py`, `/history` slash command and `autobot history` Typer CLI command (15 unit tests passing).
 
 ---
 
 ## 7. Current Project Status
 
-- **Completed Phases**: Phases 1 through 20 (100% verified & tested).
-- **Next Phase**: Phase 21 (AI Parsing Resilience & Transaction History Viewer).
-- **Last Action**: Completed Phase 20 (Smart OS path alias resolution across CLI, REPL, and AI commands; session-aware REPL workspace injection; camelCase and TitleCase bulk transformations; unit tests expanded to 12 passing tests).
+- **Completed Phases**: Phases 1 through 21 (100% verified & tested).
+- **Next Phase**: Production deployment, user manual polish, and release tagging.
+- **Last Action**: Completed Phase 21 (Resilient JSON intent extraction, Cloud LLM fallback retry on HTTP 400, transaction history inspector across CLI and REPL, automated test suite expanded to 15 passing tests).
 
 
 

@@ -61,6 +61,8 @@ class SlashCommandRouter:
             self.handle_cd(args, repl_instance)
         elif cmd == "/undo":
             self.handle_undo(repl_instance)
+        elif cmd in ["/history", "/log", "/logs"]:
+            self.handle_history(args, repl_instance)
         elif cmd == "/key":
             self.handle_key(args, repl_instance)
         elif cmd in ["/model", "/models"]:
@@ -304,6 +306,20 @@ class SlashCommandRouter:
             for err in errors:
                 AutobotTheme.render_error(err)
 
+    def handle_history(self, args: List[str], repl_instance: Any) -> None:
+        """
+        📜 Handles /history [limit]
+        Displays recent move/rename transaction history sessions.
+        """
+        limit = 10
+        if args:
+            try:
+                limit = int(args[0])
+            except ValueError:
+                pass
+        sessions = self.logger.get_history(limit=limit)
+        TableRenderer.render_history_table(sessions)
+
     def handle_key(self, args: List[str], repl_instance: Any) -> None:
         """
         🔑 Handles /key [api_key]
@@ -480,6 +496,7 @@ class SlashCommandRouter:
             "[bold cyan]/move <query> <target_dir> [--start-dir <dir>][/bold cyan] 🚚 Move matching files to target folder\n"
             "[bold cyan]/cd <directory>[/bold cyan]                  📂 Switch current working/parent directory\n"
             "[bold cyan]/undo[/bold cyan]                            ↩️  Reverse last move/rename transaction\n"
+            "[bold cyan]/history [limit][/bold cyan]                  📜 View recent transaction history sessions\n"
             "[bold cyan]/key [api_key][/bold cyan]                   🔑 View or configure Cloud LLM API key\n"
             "[bold cyan]/model [list|local|cloud][/bold cyan]     🧠 View models (/model list) or switch active LLM\n"
             "[bold cyan]/status[/bold cyan]                          📊 View current active folder, model, & undo stack\n"

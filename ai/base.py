@@ -2,6 +2,7 @@
 Base AI Interface and System Prompts for cliagent.
 Defines structured JSON schemas and system prompts for LLM intent parsing.
 """
+import re
 from typing import Dict, Any, Optional
 
 SYSTEM_PROMPT = """You are an AI File System Intent Parser for Autobot.
@@ -33,16 +34,35 @@ Rules:
 
 def sanitize_json_response(raw_text: str) -> str:
     """
-    Strips markdown code blocks (```json ... ```) from LLM output.
+    Strips markdown code blocks, extracts JSON between ```json ... ``` or
+    finds the outermost JSON object { ... } from LLM output.
     """
     text = raw_text.strip()
+    
+    # 1. Check for markdown code fences anywhere in text
+    fence_pattern = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+    if fence_pattern:
+        candidate = fence_pattern.group(1).strip()
+        if candidate.startswith("{") or candidate.startswith("["):
+            return candidate
+
+    # 2. If text starts with ``` but wasn't caught by regex
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove first line if it's ``` or ```json
         if lines[0].startswith("```"):
             lines = lines[1:]
-        # Remove last line if it's ```
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         text = "\n".join(lines).strip()
+
+    # 3. If direct text is a valid JSON boundary, return it
+    if text.startswith("{") and text.endswith("}"):
+        return text
+
+    # 4. Search for the outermost balanced { ... } object in the text
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        return text[first_brace:last_brace + 1].strip()
+
     return text

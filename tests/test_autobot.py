@@ -342,6 +342,65 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertTrue(router.dispatch("/cd ~", repl))
         self.assertEqual(repl.cwd, Path.home().resolve())
 
+    def test_sanitize_json_response_resilience(self):
+        """Tests robust JSON extraction from LLM outputs with markdown fences and conversational preambles."""
+        import json
+        from ai.base import sanitize_json_response
+
+        # 1. Clean JSON
+        raw1 = '{"action": "locate", "query": "*.pdf"}'
+        self.assertEqual(json.loads(sanitize_json_response(raw1))["action"], "locate")
+
+        # 2. Markdown fence with ```json
+        raw2 = '```json\n{"action": "rename", "query": "test", "new_name": "sample"}\n```'
+        self.assertEqual(json.loads(sanitize_json_response(raw2))["action"], "rename")
+
+        # 3. Conversational preamble and closing remarks around markdown fence
+        raw3 = (
+            "Certainly! Here is the JSON intent object you requested:\n"
+            "```json\n"
+            '{"action": "move", "query": "photo", "target_dir": "Pictures"}\n'
+            "```\n"
+            "Please let me know if you need anything else!"
+        )
+        parsed3 = json.loads(sanitize_json_response(raw3))
+        self.assertEqual(parsed3["action"], "move")
+        self.assertEqual(parsed3["target_dir"], "Pictures")
+
+        # 4. Raw text without code fences
+        raw4 = 'Here is the result: {"action": "locate", "query": "report"} - hope this helps.'
+        parsed4 = json.loads(sanitize_json_response(raw4))
+        self.assertEqual(parsed4["query"], "report")
+
+    def test_transaction_history_retrieval(self):
+        """Tests TransactionLogger get_history method and limit slicing."""
+        from core.renamer import RenameAction
+
+        action1 = RenameAction(source_path=self.doc_file, target_path=self.root_path / "doc1.pdf", old_name=self.doc_file.name, new_name="doc1.pdf", is_dir=False, status="OK")
+        action2 = RenameAction(source_path=self.img_file, target_path=self.root_path / "img1.png", old_name=self.img_file.name, new_name="img1.png", is_dir=False, status="OK")
+        action3 = RenameAction(source_path=self.notes_file, target_path=self.root_path / "notes1.txt", old_name=self.notes_file.name, new_name="notes1.txt", is_dir=False, status="OK")
+
+        self.logger.log_session([action1])
+        self.logger.log_session([action2])
+        self.logger.log_session([action3])
+
+        # Test limit=2
+        history_2 = self.logger.get_history(limit=2)
+        self.assertEqual(len(history_2), 2)
+
+        # Test all history
+        history_all = self.logger.get_history(limit=10)
+        self.assertEqual(len(history_all), 3)
+
+    def test_history_slash_command(self):
+        """Tests /history slash command dispatch and table rendering."""
+        router = SlashCommandRouter()
+        repl = AutobotREPL()
+
+        # Should dispatch cleanly even with no sessions or some sessions
+        self.assertTrue(router.dispatch("/history", repl))
+        self.assertTrue(router.dispatch("/history 5", repl))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -246,6 +246,17 @@ def undo_command(
             AutobotTheme.render_error(err)
 
 
+@app.command("history")
+def history_command(
+    limit: int = typer.Option(10, "--limit", "-l", help="Number of recent sessions to display"),
+):
+    """
+    📜 View recent move and rename transaction sessions logged in history.
+    """
+    sessions = logger.get_history(limit=limit)
+    TableRenderer.render_history_table(sessions)
+
+
 def repl_input_handler(user_input: str, repl_instance: AutobotREPL) -> None:
     """
     Dispatches input received inside the REPL loop:

@@ -94,6 +94,11 @@ class CloudLLMClient:
         try:
             with httpx.Client(timeout=15.0) as client:
                 response = client.post(self.endpoint, headers=headers, json=payload)
+                # Some OpenAI-compatible endpoints reject 'response_format' with HTTP 400
+                if response.status_code == 400 and "response_format" in payload:
+                    payload.pop("response_format", None)
+                    response = client.post(self.endpoint, headers=headers, json=payload)
+
                 if response.status_code != 200:
                     return None
 

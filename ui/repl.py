@@ -31,6 +31,7 @@ class AutobotCompleter(Completer):
         "/move",
         "/cd",
         "/undo",
+        "/history",
         "/key",
         "/model",
         "/models",
