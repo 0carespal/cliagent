@@ -29,6 +29,7 @@ class AutobotCompleter(Completer):
         "/locate",
         "/rename",
         "/move",
+        "/cd",
         "/undo",
         "/key",
         "/model",

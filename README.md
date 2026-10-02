@@ -28,28 +28,65 @@
 ### 1. Prerequisites
 * Python 3.10 or higher installed on your system.
 
-### 2. Install Dependencies
+### 2. Install Autobot as a Global Terminal Command
+In your project directory, run:
 ```bash
-pip install -r requirements.txt
+pip install -e .
+```
+*(This registers the `autobot` and `cliagent` commands in your system PATH so you can run it from **any folder** in your terminal).*
+
+---
+
+## 💻 3 Ways to Use Autobot
+
+### Method 1: Global Interactive REPL (Recommended)
+Open PowerShell or CMD in **any folder** on your computer (e.g. `Downloads`, `Documents`, or `Desktop`) and simply type:
+```bash
+autobot
+```
+Autobot will immediately launch with that directory set as your active workspace!
+
+*(Alternatively, without installing globally, run `python main.py` from the project directory).*
+
+#### 📂 Accessing Other Parent / External Folders Inside REPL
+You are never restricted to the project folder:
+* **Switch directories on the fly**: Type `/cd <path>` (e.g. `/cd C:\Users\satvi\Downloads`).
+* **Specify parent directory in commands**: Pass `--start-dir <path>` (e.g. `/locate "*.pdf" --start-dir "C:\Users\satvi\Downloads"`).
+
+### Method 2: Direct Terminal CLI Subcommands
+Run deterministic commands directly without entering the interactive shell:
+```bash
+# Locate files with wildcards in Downloads
+autobot locate "*.pdf" --start-dir "C:\Users\satvi\Downloads"
+
+# Move files to Pictures
+autobot move "*.png" "C:\Users\satvi\Pictures" --start-dir "C:\Users\satvi\Downloads"
+
+# Case-preserving rename
+autobot rename "readme.md" --new-name "README.md"
+
+# Reverse last transaction
+autobot undo
+```
+
+### Method 3: Natural Language AI Assistant
+Type plain English sentences directly into the `autobot › ` prompt (or via `autobot ask "..."`):
+```text
+autobot › find all PNG files in Downloads and move them to Pictures/Screenshots
+autobot › rename draft_document.txt to annual_report_2024.txt
+autobot › move all reports larger than 10MB to Archive
 ```
 
 ---
 
-## 💻 Interactive REPL & Slash Commands
-
-Launch the interactive REPL shell by running `main.py` without arguments:
-
-```bash
-python main.py
-```
-
-### 🎯 Slash Command Cheat-Sheet
+## 🎯 Slash Command Cheat-Sheet
 
 | Slash Command | Description | Example Usage |
 | :--- | :--- | :--- |
-| **`/locate`** | Locates files/folders matching wildcards (`*.png`) or fuzzy query | `/locate "*.pdf"` or `/locate "report"` |
-| **`/rename`** | Renames a matching file or folder (supports case-only renames) | `/rename "readme.md" "README.md"` |
+| **`/locate`** | Locates files/folders matching wildcards or fuzzy query | `/locate "*.pdf"` or `/locate "report" --start-dir "C:\Downloads"` |
+| **`/rename`** | Renames a matching file/folder (supports case modifications) | `/rename "readme.md" "README.md"` |
 | **`/move`** | Moves matching files/folders to a target directory | `/move "*.png" "./Pictures"` |
+| **`/cd`** | Switches current active workspace/parent directory | `/cd "C:\Users\satvi\Downloads"` |
 | **`/undo`** | Reverses the last move or rename transaction session | `/undo` |
 | **`/key`** | Views or configures your Cloud LLM API key | `/key sk-proj-...` |
 | **`/model list`** (or **`/models`**) | Lists all detected local Ollama models and cloud model status | `/model list` |

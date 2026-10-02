@@ -57,6 +57,8 @@ class SlashCommandRouter:
             self.handle_rename(args, repl_instance)
         elif cmd == "/move":
             self.handle_move(args, repl_instance)
+        elif cmd in ["/cd", "/chdir"]:
+            self.handle_cd(args, repl_instance)
         elif cmd == "/undo":
             self.handle_undo(repl_instance)
         elif cmd == "/key":
@@ -79,12 +81,43 @@ class SlashCommandRouter:
 
         return True
 
-    def handle_locate(self, args: List[str], repl_instance: Any) -> None:
+    def handle_cd(self, args: List[str], repl_instance: Any) -> None:
         """
-        🔍 Handles /locate <query> [--start-dir DIR] [--ext EXT1 EXT2]
+        📂 Handles /cd <directory>
+        Switches the active working directory for the current session.
         """
         if not args:
-            AutobotTheme.render_warning("Missing search query. Usage: [bold cyan]/locate <query> [--start-dir DIR] [--ext pdf png][/bold cyan]")
+            AutobotTheme.render_warning("Missing directory path. Usage: [bold cyan]/cd <folder_path>[/bold cyan]")
+            return
+
+        target_str = " ".join(args).strip("\"'")
+        new_path = Path(target_str)
+        if not new_path.is_absolute():
+            new_path = (repl_instance.cwd / new_path).resolve()
+        else:
+            new_path = new_path.resolve()
+
+        if not new_path.exists() or not new_path.is_dir():
+            AutobotTheme.render_error(f"Directory not found: '{new_path}'")
+            return
+
+        repl_instance.cwd = new_path
+        try:
+            import os
+            os.chdir(new_path)
+        except Exception:
+            pass
+        AutobotTheme.render_success(f"Changed active directory to: [bold cyan]{new_path}[/bold cyan]")
+
+    def handle_locate(self, args: List[str], repl_instance: Any) -> None:
+        """
+        🔍 Handles /locate <query> [--start-dir <parent_dir>] [--ext EXT1 EXT2]
+        """
+        if not args:
+            AutobotTheme.render_warning(
+                "Missing search query. Usage: [bold cyan]/locate <query> [--start-dir <parent_dir>] [--ext pdf png][/bold cyan]\n"
+                "[dim]Tip: Pass --start-dir <path> (e.g. C:\\Users\\...\\Downloads) to search outside the project folder, or use /cd <path>.[/dim]"
+            )
             return
 
         query = args[0]
@@ -109,29 +142,50 @@ class SlashCommandRouter:
             with AutobotTheme.status(f"Searching directory tree for '{query}'..."):
                 results = self.finder.search(query=query, start_dir=start_dir, extensions=exts)
             TableRenderer.render_search_results(results, query=query)
+            if not results:
+                AutobotTheme.render_warning(
+                    f"No files matching '{query}' found in '{start_dir}'.\n"
+                    f"💡 [dim]Tip: If your files are in a different folder, specify the parent directory with: [bold cyan]/locate '{query}' --start-dir <parent_path>[/bold cyan] or switch with [bold cyan]/cd <path>[/bold cyan][/dim]"
+                )
         except Exception as e:
             AutobotTheme.render_error(f"Search failed: {e}")
 
     def handle_rename(self, args: List[str], repl_instance: Any) -> None:
         """
-        ✏️ Handles /rename <query> <new_name>
+        ✏️ Handles /rename <query> <new_name> [--start-dir <parent_dir>]
         """
         if len(args) < 2:
-            AutobotTheme.render_warning("Usage: [bold cyan]/rename <search_query> <new_name>[/bold cyan]")
+            AutobotTheme.render_warning(
+                "Usage: [bold cyan]/rename <search_query> <new_name> [--start-dir <parent_dir>][/bold cyan]\n"
+                "[dim]Tip: By default, Autobot searches in the current folder. Pass --start-dir <path> or use /cd <path> to target another directory.[/dim]"
+            )
             return
 
         query = args[0]
         new_name = args[1]
+        start_dir = str(repl_instance.cwd)
+
+        # Parse optional --start-dir / -s
+        idx = 2
+        while idx < len(args):
+            if args[idx] in ["--start-dir", "-s"] and idx + 1 < len(args):
+                start_dir = args[idx + 1]
+                idx += 2
+            else:
+                idx += 1
 
         try:
-            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}'..."):
+            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}' in '{start_dir}'..."):
                 actions = self.renamer.prepare_single_rename(
                     query=query,
                     new_name=new_name,
-                    start_dir=str(repl_instance.cwd)
+                    start_dir=start_dir
                 )
             if not actions:
-                AutobotTheme.render_warning(f"No file matching query '{query}' was found to rename.")
+                AutobotTheme.render_warning(
+                    f"No file matching query '{query}' was found in '{start_dir}'.\n"
+                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/rename '{query}' '{new_name}' --start-dir <parent_folder>[/bold cyan] or switch folders with [bold cyan]/cd <path>[/bold cyan][/dim]"
+                )
                 return
 
             # Interactive confirmation guardrail
@@ -153,24 +207,40 @@ class SlashCommandRouter:
 
     def handle_move(self, args: List[str], repl_instance: Any) -> None:
         """
-        🚚 Handles /move <query> <target_dir>
+        🚚 Handles /move <query> <target_dir> [--start-dir <parent_dir>]
         """
         if len(args) < 2:
-            AutobotTheme.render_warning("Usage: [bold cyan]/move <search_query> <target_directory>[/bold cyan]")
+            AutobotTheme.render_warning(
+                "Usage: [bold cyan]/move <search_query> <target_directory> [--start-dir <parent_dir>][/bold cyan]\n"
+                "[dim]Tip: By default, Autobot searches in the current folder. Pass --start-dir <path> or use /cd <path> to search in another folder.[/dim]"
+            )
             return
 
         query = args[0]
         target_dir = args[1]
+        start_dir = str(repl_instance.cwd)
+
+        # Parse optional --start-dir / -s
+        idx = 2
+        while idx < len(args):
+            if args[idx] in ["--start-dir", "-s"] and idx + 1 < len(args):
+                start_dir = args[idx + 1]
+                idx += 2
+            else:
+                idx += 1
 
         try:
             with AutobotTheme.status(f"Preparing relocation for '{query}' -> '{target_dir}'..."):
                 actions = self.mover.prepare_move(
                     query=query,
                     target_dir=target_dir,
-                    start_dir=str(repl_instance.cwd)
+                    start_dir=start_dir
                 )
             if not actions:
-                AutobotTheme.render_warning(f"No files/folders matching '{query}' found to move.")
+                AutobotTheme.render_warning(
+                    f"No files/folders matching '{query}' found in '{start_dir}'.\n"
+                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/move '{query}' '{target_dir}' --start-dir <parent_path>[/bold cyan] or switch with [bold cyan]/cd <path>[/bold cyan][/dim]"
+                )
                 return
 
             # Check if destination directory is missing
@@ -403,16 +473,18 @@ class SlashCommandRouter:
         Renders slash command cheat-sheet card.
         """
         help_text = (
-            "[bold cyan]/locate <query> [--ext ...][/bold cyan]     🔍 Locate files matching query using fuzzy search\n"
-            "[bold cyan]/rename <query> <new_name>[/bold cyan]      ✏️  Rename matching file/folder\n"
-            "[bold cyan]/move <query> <target_dir>[/bold cyan]      🚚 Move matching files to target folder\n"
+            "[bold cyan]/locate <query> [--start-dir <dir>][/bold cyan]  🔍 Locate files with wildcard/fuzzy search\n"
+            "[bold cyan]/rename <query> <new_name> [--start-dir <dir>][/bold cyan]  ✏️  Rename matching file/folder\n"
+            "[bold cyan]/move <query> <target_dir> [--start-dir <dir>][/bold cyan] 🚚 Move matching files to target folder\n"
+            "[bold cyan]/cd <directory>[/bold cyan]                  📂 Switch current working/parent directory\n"
             "[bold cyan]/undo[/bold cyan]                            ↩️  Reverse last move/rename transaction\n"
             "[bold cyan]/key [api_key][/bold cyan]                   🔑 View or configure Cloud LLM API key\n"
             "[bold cyan]/model [list|local|cloud][/bold cyan]     🧠 View models (/model list) or switch active LLM\n"
             "[bold cyan]/status[/bold cyan]                          📊 View current active folder, model, & undo stack\n"
             "[bold cyan]/clear[/bold cyan]                           🧹 Clear terminal screen canvas\n"
             "[bold cyan]/exit[/bold cyan]                            ❌ Exit Autobot REPL session\n\n"
-            "[dim white]💡 Pro Tip: Type any plain English prompt without a slash to use natural language AI processing![/dim white]"
+            "[dim cyan]💡 Directory Tip: By default, Autobot searches in the current active folder. To target other folders (like Downloads or Desktop), pass --start-dir <parent_path> or switch anytime with /cd <path>![/dim cyan]\n"
+            "[dim white]💡 AI Pro Tip: Type any plain English prompt without a slash for AI natural language processing![/dim white]"
         )
         AutobotTheme.render_card(
             title="💡 Autobot Command Cheat-Sheet",
