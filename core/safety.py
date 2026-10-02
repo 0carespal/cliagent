@@ -8,9 +8,32 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Tuple
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+except ImportError:  # pragma: no cover - optional dependency in some environments
+    class Console:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def print(self, *args, **kwargs):
+            print(*args)
+
+    class Table:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def add_column(self, *args, **kwargs):
+            pass
+
+        def add_row(self, *args, **kwargs):
+            pass
+
+    class Panel:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            pass
 
 from config import HISTORY_FILE_PATH
 from core.renamer import RenameAction
