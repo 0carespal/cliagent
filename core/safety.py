@@ -4,6 +4,7 @@ Provides preview rendering (Dry-Run table using rich) and transaction logging/un
 """
 import json
 import uuid
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Tuple
@@ -44,14 +45,14 @@ class TransactionLogger:
             if isinstance(action, RenameAction):
                 records.append({
                     "action_type": "RENAME",
-                    "original_source": str(action.source_path.resolve()),
-                    "executed_target": str(action.target_path.resolve()),
+                    "original_source": str(action.source_path),
+                    "executed_target": str(action.target_path),
                 })
             elif isinstance(action, MoveAction):
                 records.append({
                     "action_type": "MOVE",
-                    "original_source": str(action.source_path.resolve()),
-                    "executed_target": str(action.target_path.resolve()),
+                    "original_source": str(action.source_path),
+                    "executed_target": str(action.target_path),
                 })
 
         session_entry = {
@@ -107,9 +108,19 @@ class TransactionLogger:
                 # Ensure parent of original source exists
                 original_source.parent.mkdir(parents=True, exist_ok=True)
                 
-                # Reverse rename or move
+                # Reverse rename or move using shutil.move (cross-volume and drive safe)
                 if action_type in ("RENAME", "MOVE"):
-                    current_target.rename(original_source)
+                    is_case_only = (
+                        current_target.parent == original_source.parent
+                        and current_target.name.lower() == original_source.name.lower()
+                        and current_target.name != original_source.name
+                    )
+                    if is_case_only:
+                        temp_path = current_target.with_name(f"{current_target.name}.__tmp_{uuid.uuid4().hex[:8]}")
+                        shutil.move(str(current_target), str(temp_path))
+                        shutil.move(str(temp_path), str(original_source))
+                    else:
+                        shutil.move(str(current_target), str(original_source))
                     reversed_count += 1
             except Exception as e:
                 errors.append(f"Failed to restore '{current_target.name}': {e}")

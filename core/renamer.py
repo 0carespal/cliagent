@@ -4,6 +4,7 @@ Handles single file/folder renaming, bulk renaming with patterns, case formattin
 sequence numbering, and collision checking.
 """
 import re
+import uuid
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union, Any
 from dataclasses import dataclass
@@ -68,7 +69,10 @@ class FileRenamer:
                 message="New name is identical to current name."
             )
 
-        if target.exists():
+        # Case-only rename check on case-insensitive filesystems (e.g. Windows/macOS)
+        is_case_only = (source.name.lower() == new_name.lower())
+
+        if target.exists() and not is_case_only:
             return RenameAction(
                 source_path=source,
                 target_path=target,
@@ -86,7 +90,7 @@ class FileRenamer:
             new_name=new_name,
             is_dir=source.is_dir(),
             status="OK",
-            message="Ready to rename."
+            message="Ready to rename (case modification)." if is_case_only else "Ready to rename."
         )
 
     @classmethod
@@ -198,14 +202,19 @@ class FileRenamer:
             status = "OK"
             msg = "Ready to rename."
 
+            is_case_only = (item_path.name.lower() == new_filename.lower() and item_path.name != new_filename)
+            normalized_target = str(target_path).lower()
+
             if item_path.name == new_filename:
                 status = "NO_CHANGE"
                 msg = "Name unchanged."
-            elif target_path.exists() or target_path in proposed_targets:
+            elif (target_path.exists() and not is_case_only) or normalized_target in proposed_targets:
                 status = "COLLISION"
                 msg = f"Collision detected for target name '{new_filename}'."
             else:
-                proposed_targets.add(target_path)
+                proposed_targets.add(normalized_target)
+                if is_case_only:
+                    msg = "Ready to rename (case modification)."
 
             actions.append(
                 RenameAction(
@@ -225,6 +234,7 @@ class FileRenamer:
     def execute_rename_actions(actions: List[RenameAction]) -> Tuple[List[RenameAction], List[RenameAction]]:
         """
         Executes approved RenameAction items on disk.
+        Supports case-only renaming on case-insensitive filesystems using two-step rename.
         Returns (successful_actions, failed_actions).
         """
         successful: List[RenameAction] = []
@@ -236,8 +246,20 @@ class FileRenamer:
                 continue
 
             try:
-                # Perform the disk rename operation using pathlib
-                action.source_path.rename(action.target_path)
+                # Check for case-only rename on case-insensitive filesystems (Windows/macOS)
+                is_case_only = (
+                    action.source_path.parent == action.target_path.parent
+                    and action.source_path.name.lower() == action.target_path.name.lower()
+                    and action.source_path.name != action.target_path.name
+                )
+                if is_case_only:
+                    # Two-step rename using unique temp file to avoid WinError 183
+                    temp_path = action.source_path.with_name(f"{action.source_path.name}.__tmp_{uuid.uuid4().hex[:8]}")
+                    action.source_path.rename(temp_path)
+                    temp_path.rename(action.target_path)
+                else:
+                    action.source_path.rename(action.target_path)
+
                 successful.append(action)
             except Exception as e:
                 action.status = "ERROR"

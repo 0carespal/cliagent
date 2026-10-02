@@ -129,15 +129,15 @@ cliagent/
 - [x] **Phase 16: Interactive Safety Guardrails & Missing Folder Verification**: Wired `InteractiveUI` confirmation dialogs into `/rename`, `/move`, and natural language AI commands; prompt and create missing target directories upon user consent; require confirmation before undo rollback; supported `--yes`/`-y` automated execution flag.
 - [x] **Phase 17: Local Ollama Model Auto-Discovery & Dynamic Model Switching (`/model list`)**: Automatically query `/v1/models` from local Ollama/LM Studio to detect installed models, enhance `/model list` and `/model <name>` to select installed models, and provide actionable AI configuration guidance.
 - [x] **Phase 18: Search Engine Precision (Fnmatch Wildcard / Glob Matching)**: Integrate `fnmatch` into `FileFinder._compute_score` so wildcard patterns (`*.png`, `*invoice*`) receive 100% match scores instead of fuzzy penalties.
-- [ ] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
+- [x] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
 
 ---
 
 ## 7. Current Project Status
 
-- **Completed Phases**: Phases 1 through 18.
-- **Next Phase**: Phase 19 — Windows Cross-Drive Undo & Case-Preserving Renaming.
-- **Last Action**: Completed Phase 18 (fnmatch glob wildcard precision matching, relative path evaluation, and query bridging for FileMover and FileRenamer). All 8 unit tests passing.
+- **Completed Phases**: Phases 1 through 19 (All phases completed).
+- **Next Phase**: Production readiness & maintenance.
+- **Last Action**: Completed Phase 19 (Windows cross-drive undo with `shutil.move`, case-preserving renaming on NTFS/FAT filesystems via two-step atomic rename, and case-safe undo rollback). All 9 unit tests passing.
 
 
 

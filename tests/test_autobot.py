@@ -3,6 +3,7 @@ End-to-End Automated Test Suite for Autobot CLI Agent.
 Validates Finder, Renamer, Mover, Safety undo log, Theme, REPL session, and Slash Command Router.
 """
 
+import os
 import sys
 import tempfile
 import unittest
@@ -228,6 +229,54 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertEqual(len(rename_actions), 1)
         self.assertEqual(rename_actions[0].old_name, "annual_report_2024.pdf")
         self.assertEqual(rename_actions[0].new_name, "annual_report_final.pdf")
+
+    def test_case_preserving_rename_and_cross_drive_undo(self):
+        """Tests Phase 19 case-preserving renaming and cross-drive undo rollback."""
+        # 1. Create a file with lowercase name
+        sample_file = self.root_path / "readme.md"
+        sample_file.write_text("sample content", encoding="utf-8")
+
+        # 2. Prepare single case-only rename: readme.md -> README.md
+        action = FileRenamer.prepare_single_rename(sample_file, "README.md")
+        self.assertEqual(action.status, "OK")
+        self.assertEqual(action.new_name, "README.md")
+
+        # 3. Execute rename
+        successful, failed = FileRenamer.execute_rename_actions([action])
+        self.assertEqual(len(successful), 1)
+        self.assertEqual(len(failed), 0)
+
+        # 4. Verify disk name has new case
+        dir_files = os.listdir(self.root_path)
+        self.assertIn("README.md", dir_files)
+
+        # 5. Log transaction and test undo
+        session_id = self.logger.log_session(successful)
+        reversed_count, errors = self.logger.undo_last_session()
+        self.assertEqual(reversed_count, 1)
+        self.assertEqual(len(errors), 0)
+        self.assertIn("readme.md", os.listdir(self.root_path))
+
+        # 6. Test bulk case transformation does not trigger false collision
+        bulk_file1 = self.root_path / "doc_one.txt"
+        bulk_file2 = self.root_path / "doc_two.txt"
+        bulk_file1.write_text("one", encoding="utf-8")
+        bulk_file2.write_text("two", encoding="utf-8")
+
+        bulk_actions = FileRenamer.prepare_bulk_rename(
+            items=[bulk_file1, bulk_file2],
+            case_format="upper"
+        )
+        self.assertEqual(len(bulk_actions), 2)
+        for a in bulk_actions:
+            self.assertEqual(a.status, "OK")
+            self.assertIn("case modification", a.message)
+
+        succ, fail = FileRenamer.execute_rename_actions(bulk_actions)
+        self.assertEqual(len(succ), 2)
+        self.assertEqual(len(fail), 0)
+        self.assertIn("DOC_ONE.txt", os.listdir(self.root_path))
+        self.assertIn("DOC_TWO.txt", os.listdir(self.root_path))
 
 
 if __name__ == "__main__":
