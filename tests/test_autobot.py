@@ -499,6 +499,52 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertEqual(new_history_len, initial_history_len - 1)
 
 
+    def test_locate_slash_flag_reordering(self):
+        """Tests that /locate parses flags correctly regardless of whether --ext appears before --start-dir."""
+        router = SlashCommandRouter()
+        repl = AutobotREPL()
+        repl.cwd = self.root_path
+
+        # Dispatch with --ext before --start-dir
+        # Should not crash, and should honor both --ext and --start-dir
+        dispatched = router.dispatch(f'/locate report --ext pdf --start-dir "{self.root_path}"', repl)
+        self.assertTrue(dispatched)
+
+    def test_rename_slash_bulk_flags(self):
+        """Tests that /rename parses bulk flags such as --case, --prefix, etc."""
+        from unittest.mock import patch
+        router = SlashCommandRouter()
+        repl = AutobotREPL()
+        repl.cwd = self.root_path
+
+        # Create snake_case file
+        snake_file = self.root_path / "hello_world_test.txt"
+        snake_file.write_text("bulk test")
+
+        with patch.object(router.renamer, "prepare_bulk_rename", wraps=router.renamer.prepare_bulk_rename) as mock_bulk:
+            dispatched = router.dispatch(f'/rename hello --case camel --start-dir "{self.root_path}"', repl)
+            self.assertTrue(dispatched)
+            mock_bulk.assert_called_once()
+            call_kwargs = mock_bulk.call_args[1]
+            self.assertEqual(call_kwargs["case_type"], "camel")
+
+    def test_move_slash_with_ext_filter(self):
+        """Tests that /move slash command parses --ext and passes extensions to FileMover."""
+        from unittest.mock import patch
+        router = SlashCommandRouter()
+        repl = AutobotREPL()
+        repl.cwd = self.root_path
+
+        target_dir = self.root_path / "MovedPdfs"
+
+        with patch.object(router.mover, "prepare_move", wraps=router.mover.prepare_move) as mock_move:
+            dispatched = router.dispatch(f'/move * "{target_dir}" --ext pdf --start-dir "{self.root_path}"', repl)
+            self.assertTrue(dispatched)
+            mock_move.assert_called_once()
+            call_kwargs = mock_move.call_args[1]
+            self.assertEqual(call_kwargs["extensions"], ["pdf"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

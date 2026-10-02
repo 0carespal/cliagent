@@ -199,7 +199,7 @@ class AutobotREPL:
                     AutobotTheme.get_console().print("[bold cyan]Goodbye! Exiting Autobot session.[/bold cyan]")
                     break
 
-                if user_input.lower() == "/clear":
+                if user_input.lower() in ["/clear", "/cls", "clear", "cls"]:
                     os.system("cls" if os.name == "nt" else "clear")
                     continue
 

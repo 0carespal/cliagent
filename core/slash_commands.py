@@ -122,16 +122,21 @@ class SlashCommandRouter:
         start_dir = str(repl_instance.cwd)
         exts = None
 
-        # Parse simple options if provided
+        # Parse options
         idx = 1
         while idx < len(args):
             arg = args[idx]
             if arg in ["--start-dir", "-s"] and idx + 1 < len(args):
                 start_dir = args[idx + 1]
                 idx += 2
-            elif arg in ["--ext", "-e"] and idx + 1 < len(args):
-                exts = args[idx + 1:]
-                break
+            elif arg in ["--ext", "-e"]:
+                idx += 1
+                ext_list = []
+                while idx < len(args) and not args[idx].startswith("-"):
+                    ext_list.append(args[idx])
+                    idx += 1
+                if ext_list:
+                    exts = ext_list
             else:
                 idx += 1
 
@@ -151,41 +156,86 @@ class SlashCommandRouter:
 
     def handle_rename(self, args: List[str], repl_instance: Any) -> None:
         """
-        ✏️ Handles /rename <query> <new_name> [--start-dir <parent_dir>]
+        ✏️ Handles /rename <query> [new_name] [--case <case>] [--prefix <pre>] [--suffix <suf>] [--seq <seq>] [--start-dir <dir>]
         """
-        if len(args) < 2:
+        if not args:
             AutobotTheme.render_warning(
-                "Usage: [bold cyan]/rename <search_query> <new_name> [--start-dir <parent_dir>][/bold cyan]\n"
+                "Usage: [bold cyan]/rename <query> <new_name> [--start-dir <parent_dir>][/bold cyan]\n"
+                "   or: [bold cyan]/rename <query> --case <camel|snake|kebab|title|lower|upper> [--start-dir <dir>][/bold cyan]\n"
+                "   or: [bold cyan]/rename <query> --prefix <pre> [--suffix <suf>] [--seq <pat>][/bold cyan]\n"
                 "[dim]Tip: By default, Autobot searches in the current folder. Pass --start-dir <path> or use /cd <path> to target another directory.[/dim]"
             )
             return
 
         query = args[0]
-        new_name = args[1]
+        new_name = None
+        prefix = None
+        suffix = None
+        case = None
+        seq = None
         start_dir = str(repl_instance.cwd)
 
-        # Parse optional --start-dir / -s
-        idx = 2
+        # Parse flags & options
+        idx = 1
         while idx < len(args):
-            if args[idx] in ["--start-dir", "-s"] and idx + 1 < len(args):
+            arg = args[idx]
+            if arg in ["--start-dir"] and idx + 1 < len(args):
                 start_dir = args[idx + 1]
                 idx += 2
+            elif arg in ["--new-name", "-n"] and idx + 1 < len(args):
+                new_name = args[idx + 1]
+                idx += 2
+            elif arg in ["--prefix", "-p"] and idx + 1 < len(args):
+                prefix = args[idx + 1]
+                idx += 2
+            elif arg in ["--suffix", "-s"] and idx + 1 < len(args):
+                suffix = args[idx + 1]
+                idx += 2
+            elif arg in ["--case", "-c"] and idx + 1 < len(args):
+                case = args[idx + 1]
+                idx += 2
+            elif arg in ["--seq"] and idx + 1 < len(args):
+                seq = args[idx + 1]
+                idx += 2
+            elif not arg.startswith("-") and new_name is None:
+                new_name = arg
+                idx += 1
             else:
                 idx += 1
 
         resolved_start = str(config.resolve_user_path(start_dir, base_dir=repl_instance.cwd))
 
         try:
-            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}' in '{resolved_start}'..."):
-                actions = self.renamer.prepare_single_rename(
-                    query=query,
-                    new_name=new_name,
-                    start_dir=resolved_start
+            if new_name:
+                with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}' in '{resolved_start}'..."):
+                    actions = self.renamer.prepare_single_rename(
+                        query=query,
+                        new_name=new_name,
+                        start_dir=resolved_start
+                    )
+            elif any([prefix, suffix, case, seq]):
+                with AutobotTheme.status(f"Preparing bulk rename for '{query}' in '{resolved_start}'..."):
+                    actions = self.renamer.prepare_bulk_rename(
+                        query=query,
+                        start_dir=resolved_start,
+                        prefix=prefix,
+                        suffix=suffix,
+                        case_type=case,
+                        seq_pattern=seq
+                    )
+            else:
+                AutobotTheme.render_warning(
+                    "Missing rename parameters. Specify a new filename or bulk pattern flags:\n"
+                    "  • [bold cyan]/rename <query> <new_name>[/bold cyan]\n"
+                    "  • [bold cyan]/rename <query> --case camel|snake|kebab|title|lower|upper[/bold cyan]\n"
+                    "  • [bold cyan]/rename <query> --prefix <pre> --suffix <suf> --seq <pat>[/bold cyan]"
                 )
+                return
+
             if not actions:
                 AutobotTheme.render_warning(
                     f"No file matching query '{query}' was found in '{resolved_start}'.\n"
-                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/rename '{query}' '{new_name}' --start-dir <parent_folder>[/bold cyan] or switch folders with [bold cyan]/cd <path>[/bold cyan][/dim]"
+                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/rename '{query}' ... --start-dir <parent_folder>[/bold cyan] or switch folders with [bold cyan]/cd <path>[/bold cyan][/dim]"
                 )
                 return
 
@@ -208,11 +258,11 @@ class SlashCommandRouter:
 
     def handle_move(self, args: List[str], repl_instance: Any) -> None:
         """
-        🚚 Handles /move <query> <target_dir> [--start-dir <parent_dir>]
+        🚚 Handles /move <query> <target_dir> [--start-dir <parent_dir>] [--ext EXT1 EXT2]
         """
         if len(args) < 2:
             AutobotTheme.render_warning(
-                "Usage: [bold cyan]/move <search_query> <target_directory> [--start-dir <parent_dir>][/bold cyan]\n"
+                "Usage: [bold cyan]/move <search_query> <target_directory> [--start-dir <parent_dir>] [--ext ext1 ext2][/bold cyan]\n"
                 "[dim]Tip: By default, Autobot searches in the current folder. Pass --start-dir <path> or use /cd <path> to search in another folder.[/dim]"
             )
             return
@@ -220,13 +270,23 @@ class SlashCommandRouter:
         query = args[0]
         target_dir = args[1]
         start_dir = str(repl_instance.cwd)
+        exts = None
 
-        # Parse optional --start-dir / -s
+        # Parse options
         idx = 2
         while idx < len(args):
-            if args[idx] in ["--start-dir", "-s"] and idx + 1 < len(args):
+            arg = args[idx]
+            if arg in ["--start-dir", "-s"] and idx + 1 < len(args):
                 start_dir = args[idx + 1]
                 idx += 2
+            elif arg in ["--ext", "-e"]:
+                idx += 1
+                ext_list = []
+                while idx < len(args) and not args[idx].startswith("-"):
+                    ext_list.append(args[idx])
+                    idx += 1
+                if ext_list:
+                    exts = ext_list
             else:
                 idx += 1
 
@@ -238,7 +298,8 @@ class SlashCommandRouter:
                 actions = self.mover.prepare_move(
                     query=query,
                     target_dir=resolved_target,
-                    start_dir=resolved_start
+                    start_dir=resolved_start,
+                    extensions=exts
                 )
             if not actions:
                 AutobotTheme.render_warning(
@@ -272,7 +333,7 @@ class SlashCommandRouter:
                 executed, errors = self.mover.execute_move(actions)
             if executed:
                 session_id = self.logger.log_session(executed)
-                AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{target_dir}'! Transaction session: [dim]{session_id}[/dim]")
+                AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{resolved_target}'! Transaction session: [dim]{session_id}[/dim]")
             if errors:
                 for err in errors:
                     AutobotTheme.render_error(err)
