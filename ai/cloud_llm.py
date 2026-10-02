@@ -25,6 +25,7 @@ class CloudLLMClient:
         self._api_key = api_key
         self._base_url = base_url
         self._model_name = model_name
+        self.last_error: Optional[str] = None
 
     @property
     def api_key(self) -> str:
@@ -73,7 +74,9 @@ class CloudLLMClient:
         """
         Sends user prompt to Cloud LLM and returns parsed JSON intent object.
         """
+        self.last_error = None
         if not self.is_available():
+            self.last_error = "Cloud API key not configured. Use /key <api_key>."
             return None
 
         headers = {
@@ -92,7 +95,7 @@ class CloudLLMClient:
         }
 
         try:
-            with httpx.Client(timeout=15.0) as client:
+            with httpx.Client(timeout=30.0) as client:
                 response = client.post(self.endpoint, headers=headers, json=payload)
                 # Some OpenAI-compatible endpoints reject 'response_format' with HTTP 400
                 if response.status_code == 400 and "response_format" in payload:
@@ -100,11 +103,19 @@ class CloudLLMClient:
                     response = client.post(self.endpoint, headers=headers, json=payload)
 
                 if response.status_code != 200:
+                    self.last_error = f"Cloud provider returned HTTP {response.status_code}: {response.text[:120]}"
                     return None
 
                 data = response.json()
                 raw_content = data["choices"][0]["message"]["content"]
                 clean_json_str = sanitize_json_response(raw_content)
                 return json.loads(clean_json_str)
-        except Exception:
+        except httpx.ConnectError:
+            self.last_error = f"Cannot reach Cloud endpoint at {self.endpoint}. Check network connection."
+            return None
+        except httpx.TimeoutException:
+            self.last_error = f"Cloud API request timed out after 30s."
+            return None
+        except Exception as e:
+            self.last_error = f"Cloud LLM error: {e}"
             return None

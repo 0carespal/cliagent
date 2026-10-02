@@ -371,8 +371,8 @@ class SlashCommandRouter:
         cloud_model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
         cloud_label = f"Cloud LLM ({cloud_model_name})"
 
-        # 1. /model list or /models
-        if args and args[0].lower() in ["list", "ls", "--list", "-l"]:
+        # 1. /model (no args) or /model list -> Show available models card safely
+        if not args or args[0].lower() in ["list", "ls", "--list", "-l", "status", "info", "show"]:
             installed_local = local_client.list_installed_models()
             lines = []
             
@@ -395,16 +395,19 @@ class SlashCommandRouter:
                 title="🧠 Available LLM Models",
                 content="\n".join(lines),
                 style="cyan",
-                subtitle="Switch model with: /model <name> or /model cloud"
+                subtitle="Switch model with: /model <name> (e.g. /model qwen3.5:4b) or /model cloud"
             )
             return
 
+        choice = args[0]
+        choice_lower = choice.lower()
+
         installed_local = local_client.list_installed_models()
-        best_local_name = local_client.resolve_model_name() if installed_local else "qwen2.5:4b"
+        best_local_name = local_client.resolve_model_name() if installed_local else "qwen3.5:4b"
         local_label = f"Local LLM ({best_local_name})"
 
-        # 2. /model (no args -> toggle)
-        if not args:
+        # 2. Explicit /model toggle
+        if choice_lower == "toggle":
             current = repl_instance.model_name
             if current == "No model available":
                 if cloud_client.is_available():
@@ -412,7 +415,7 @@ class SlashCommandRouter:
                 elif installed_local:
                     new_model = local_label
                 else:
-                    AutobotTheme.render_warning("No model available. Set a key via: /key <API_KEY> or run /model list.")
+                    AutobotTheme.render_warning("No model available. Set a key via: /key <API_KEY> or run /model.")
                     return
             else:
                 new_model = cloud_label if "Local" in current else local_label
@@ -422,9 +425,6 @@ class SlashCommandRouter:
                 config.save_user_config("local_llm_model", best_local_name)
             AutobotTheme.render_success(f"Switched LLM Provider model to: [bold yellow]{new_model}[/bold yellow]")
             return
-
-        choice = args[0]
-        choice_lower = choice.lower()
 
         # 3. Switch to Cloud
         if choice_lower in ["cloud", "openai", "remote", "api"]:

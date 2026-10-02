@@ -401,6 +401,36 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertTrue(router.dispatch("/history", repl))
         self.assertTrue(router.dispatch("/history 5", repl))
 
+    def test_model_no_args_does_not_mutate(self):
+        """Tests that typing /model without arguments renders available models without silently mutating active model."""
+        router = SlashCommandRouter()
+        repl = AutobotREPL(model_name="Custom Model")
+        self.assertTrue(router.dispatch("/model", repl))
+        self.assertEqual(repl.model_name, "Custom Model")
+        self.assertTrue(router.dispatch("/models", repl))
+        self.assertEqual(repl.model_name, "Custom Model")
+
+    def test_local_model_prefers_4b(self):
+        """Tests that LocalLLMClient automatically prefers lighter 4B models when multiple models are installed."""
+        from unittest.mock import patch
+        from ai.local_llm import LocalLLMClient
+        client = LocalLLMClient()
+        with patch.object(client, "list_installed_models", return_value=["qwen3.5:latest", "qwen3.5:9b", "qwen3.5:4b"]):
+            self.assertEqual(client.resolve_model_name(), "qwen3.5:4b")
+
+    def test_intent_parser_timeout_error_reporting(self):
+        """Tests that AIIntentParser reports specific error details rather than generic provider None."""
+        from unittest.mock import patch
+        from ai.intent_parser import AIIntentParser
+        parser = AIIntentParser()
+        with patch.object(parser.local_client, "is_available", return_value=True), \
+             patch.object(parser.local_client, "parse_intent", return_value=None), \
+             patch.object(parser.cloud_client, "is_available", return_value=False):
+            parser.local_client.last_error = "Local model 'qwen3.5:latest' timed out after 90s"
+            result, err = parser.parse("find files")
+            self.assertIsNone(result)
+            self.assertIn("timed out after 90s", err)
+
 
 if __name__ == "__main__":
     unittest.main()

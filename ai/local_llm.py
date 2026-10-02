@@ -23,6 +23,7 @@ class LocalLLMClient:
             self.base_url = f"{self.base_url}/v1"
         self.endpoint = f"{self.base_url}/chat/completions"
         self._model_name = model_name or LOCAL_LLM_MODEL or ""
+        self.last_error: Optional[str] = None
 
     @property
     def model_name(self) -> str:
@@ -53,8 +54,9 @@ class LocalLLMClient:
         Resolves the best available local model name:
         1. If explicitly configured model exists in installed list, returns it.
         2. If substring matches an installed model (e.g. 'qwen' -> 'qwen3.5:4b'), returns match.
-        3. If not configured or not matched, falls back to first installed model.
-        4. If no models installed, returns default model name.
+        3. Prefer lighter models (4b, 3b, 2b, 1.5b) for fast on-demand loading.
+        4. Fallback to first installed model.
+        5. If no models installed, returns default model name.
         """
         installed = self.list_installed_models()
         if not installed:
@@ -68,6 +70,12 @@ class LocalLLMClient:
             # Check substring match
             for m in installed:
                 if self._model_name.lower() in m.lower():
+                    return m
+
+        # Prefer lighter models for fast on-demand laptop performance
+        for preferred_tag in [":4b", "4b", ":3b", "3b", ":2b", "2b", ":1.5b", "1.5b"]:
+            for m in installed:
+                if preferred_tag in m.lower():
                     return m
 
         # Fallback to first available installed model
@@ -84,7 +92,9 @@ class LocalLLMClient:
     def parse_intent(self, user_prompt: str) -> Optional[Dict[str, Any]]:
         """
         Sends user prompt to local LLM and returns parsed JSON intent object.
+        Supports 90s timeout for on-demand cold-start memory loading.
         """
+        self.last_error = None
         target_model = self.resolve_model_name()
         payload = {
             "model": target_model,
@@ -97,14 +107,27 @@ class LocalLLMClient:
         }
 
         try:
-            with httpx.Client(timeout=15.0) as client:
+            with httpx.Client(timeout=90.0) as client:
                 response = client.post(self.endpoint, json=payload)
+                # Some local models reject response_format with 400 Bad Request
+                if response.status_code == 400 and "response_format" in payload:
+                    payload.pop("response_format", None)
+                    response = client.post(self.endpoint, json=payload)
+
                 if response.status_code != 200:
+                    self.last_error = f"Ollama returned HTTP {response.status_code}: {response.text[:120]}"
                     return None
 
                 data = response.json()
                 raw_content = data["choices"][0]["message"]["content"]
                 clean_json_str = sanitize_json_response(raw_content)
                 return json.loads(clean_json_str)
-        except Exception:
+        except httpx.ConnectError:
+            self.last_error = f"Could not connect to local Ollama at {self.base_url}. Ensure Ollama is running."
+            return None
+        except httpx.TimeoutException:
+            self.last_error = f"Local model '{target_model}' timed out after 90s while loading into memory. Try a lighter model with: /model qwen3.5:4b"
+            return None
+        except Exception as e:
+            self.last_error = f"Local LLM error: {e}"
             return None

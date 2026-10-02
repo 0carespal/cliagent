@@ -175,20 +175,21 @@ def ask_command(
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Execute immediately without confirmation prompt"),
     cwd_override: Optional[Path] = typer.Option(None, "--cwd", hidden=True, help="Internal directory override"),
+    preferred_model: Optional[str] = typer.Option(None, "--model", "-m", hidden=True, help="Internal model preference"),
 ):
     """
     🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud LLMs (OpenAI, Groq, OpenRouter, etc.).
     """
     ai_parser = AIIntentParser()
-    with AutobotTheme.status(f"AI parsing natural language request: '{prompt}'..."):
-        intent_data, provider_name = ai_parser.parse(prompt)
+    with AutobotTheme.status(f"AI parsing natural language request: '{prompt}' (loading model if needed)..."):
+        intent_data, provider_info = ai_parser.parse(prompt, preferred_model=preferred_model)
 
     if not intent_data:
-        AutobotTheme.render_error(f"AI Engine failed to parse request using provider: {provider_name}")
-        AutobotTheme.render_warning("💡 Tip: Use /key <api_key> to configure a Cloud LLM key, or start a local Ollama instance.")
+        AutobotTheme.render_error(f"AI Engine failed to parse request: {provider_info}")
+        AutobotTheme.render_warning("💡 Tip: Use /model to check installed local models or /key <api_key> for Cloud LLM.")
         return
 
-    AutobotTheme.render_success(f"Intent Parsed using provider: {provider_name}")
+    AutobotTheme.render_success(f"Intent Parsed using provider: {provider_info}")
     action = intent_data.get("action")
     query = intent_data.get("query", "*")
     source_dir = intent_data.get("source_dir") or "."
@@ -267,8 +268,8 @@ def repl_input_handler(user_input: str, repl_instance: AutobotREPL) -> None:
     if slash_router.dispatch(user_input, repl_instance):
         return
 
-    # Fallback to AI Natural Language Assistant
-    ask_command(prompt=user_input, cwd_override=repl_instance.cwd)
+    # Fallback to AI Natural Language Assistant with REPL session context
+    ask_command(prompt=user_input, cwd_override=repl_instance.cwd, preferred_model=repl_instance.model_name)
 
 
 def main_launcher():

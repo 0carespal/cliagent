@@ -132,14 +132,15 @@ cliagent/
 - [x] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
 - [x] **Phase 20: Smart Path Alias Resolution, REPL AI Workspace Awareness & camelCase Renaming**: Centralized `resolve_user_path` resolving `~`, `Desktop`, `Downloads`, `Documents`, etc. against active REPL workspace `repl_instance.cwd`; added `cwd_override` to `ask_command` so AI natural language prompts execute in current folder; added `camel` and `title` case bulk transformation support; updated `/cd` slash command and test suite (12 unit tests passing).
 - [x] **Phase 21: AI Parsing Resilience & Transaction History Viewer**: Robust JSON extraction in `ai/base.py` (braced extraction `{ ... }` and regex fence stripping), Cloud LLM fallback retry without `response_format` on 400 Bad Request, `get_history` helper in `core/safety.py`, `render_history_table` in `ui/tables.py`, `/history` slash command and `autobot history` Typer CLI command (15 unit tests passing).
+- [x] **Phase 22: On-Demand Local LLM Lifecycle, Cold-Start Resilience & Informational /model Management**: 90s timeout for on-demand Ollama cold-start loading into memory; automatic preference for lighter 4B/3B models (`qwen3.5:4b`); non-mutating `/model` informational menu showing active status `[✓ Active]`; descriptive diagnostic error messages on timeout/failure; session model consistency propagated from REPL to intent parser (18 unit tests passing).
 
 ---
 
 ## 7. Current Project Status
 
-- **Completed Phases**: Phases 1 through 21 (100% verified & tested).
+- **Completed Phases**: Phases 1 through 22 (100% verified & tested).
 - **Next Phase**: Production deployment, user manual polish, and release tagging.
-- **Last Action**: Completed Phase 21 (Resilient JSON intent extraction, Cloud LLM fallback retry on HTTP 400, transaction history inspector across CLI and REPL, automated test suite expanded to 15 passing tests).
+- **Last Action**: Completed Phase 22 (On-demand local model cold-start timeout extended to 90s, transparent diagnostic error reporting, smart 4B model resolution, safe informational /model menu, automated test suite expanded to 18 passing tests).
 
 
 
