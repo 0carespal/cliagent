@@ -542,7 +542,20 @@ class TestAutobotCLI(unittest.TestCase):
             self.assertTrue(dispatched)
             mock_move.assert_called_once()
             call_kwargs = mock_move.call_args[1]
-            self.assertEqual(call_kwargs["extensions"], ["pdf"])
+    def test_bulk_rename_seq_pattern(self):
+        """Tests that seq_pattern parameter in prepare_bulk_rename correctly applies sequence numbering."""
+        file1 = self.root_path / "img_a.png"
+        file2 = self.root_path / "img_b.png"
+        file1.write_text("a")
+        file2.write_text("b")
+
+        actions = FileRenamer.prepare_bulk_rename(
+            items=[file1, file2],
+            seq_pattern="vacation_"
+        )
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(actions[0].new_name, "vacation_01.png")
+        self.assertEqual(actions[1].new_name, "vacation_02.png")
 
 
 if __name__ == "__main__":

@@ -197,10 +197,11 @@ class FileRenamer:
             if suffix:
                 new_stem = f"{new_stem}{suffix}"
 
-            # 4. Apply Sequence Numbering (Overrides stem if sequence_prefix is given)
-            if sequence_prefix is not None:
-                num_str = str(start_number + idx).zfill(2)  # 01, 02, 03...
-                new_stem = f"{sequence_prefix}{num_str}"
+            # 4. Apply Sequence Numbering (Overrides stem if active_seq is given)
+            if active_seq is not None:
+                pad_width = max(2, len(str(start_number + len(items) - 1)))
+                num_str = str(start_number + idx).zfill(pad_width)  # 01, 02, 03... or 001..100
+                new_stem = f"{active_seq}{num_str}"
 
             # Reconstruct full new filename
             new_filename = f"{new_stem}{ext}"
