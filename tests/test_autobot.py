@@ -137,6 +137,34 @@ class TestAutobotCLI(unittest.TestCase):
         repl = AutobotREPL()
         self.assertEqual(repl.model_name, "No model available")
 
+    def test_interactive_guardrails(self):
+        """Tests InteractiveUI confirmation, missing directory creation, and undo guardrails."""
+        from ui.interactive import InteractiveUI
+        from core.mover import MoveAction
+
+        # Test prompt_create_destination with auto-confirm yes
+        non_existent_dir = self.root_path / "NonExistent"
+        self.assertTrue(InteractiveUI.prompt_create_destination(non_existent_dir, yes=True))
+        FileMover.create_destination_directory(non_existent_dir, user_confirmed=True)
+        self.assertTrue(non_existent_dir.exists())
+
+        # Test confirm_action_execution with dry_run
+        test_action = MoveAction(
+            source_path=self.doc_file,
+            target_dir=non_existent_dir,
+            target_path=non_existent_dir / self.doc_file.name,
+            is_dir=False,
+            status="OK"
+        )
+        # dry_run returns False because execution is prevented
+        self.assertFalse(InteractiveUI.confirm_action_execution([test_action], dry_run=True, yes=True))
+        # yes=True with dry_run=False returns True
+        self.assertTrue(InteractiveUI.confirm_action_execution([test_action], dry_run=False, yes=True))
+
+        # Test prompt_undo_confirmation
+        self.assertTrue(InteractiveUI.prompt_undo_confirmation("session_123", 2, yes=True))
+
 
 if __name__ == "__main__":
     unittest.main()
+

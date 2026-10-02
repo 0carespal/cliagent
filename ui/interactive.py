@@ -28,16 +28,22 @@ class InteractiveUI:
     """
 
     @staticmethod
-    def prompt_create_destination(target_dir: Path) -> bool:
+    def prompt_create_destination(target_dir: Path, yes: bool = False) -> bool:
         """
         Prompts user whether to create a missing destination folder.
         Creates folder ONLY if user responds affirmatively (y/Y).
         """
+        if yes:
+            return True
+
         AutobotTheme.get_console().print(
             f"\n[bold yellow]⚠️  Notice:[/bold yellow] Target destination directory does not exist:\n"
             f"   📁 [dim cyan]{target_dir.resolve()}[/dim cyan]\n"
         )
-        if sys.stdout.isatty() and INQUIRER_AVAILABLE:
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            return False
+
+        if INQUIRER_AVAILABLE:
             try:
                 result = inquirer.confirm(
                     message=f"Create missing directory '{target_dir.name}'?",
@@ -51,7 +57,8 @@ class InteractiveUI:
     @staticmethod
     def confirm_action_execution(
         actions: List[Union[RenameAction, MoveAction]],
-        dry_run: bool = False
+        dry_run: bool = False,
+        yes: bool = False
     ) -> bool:
         """
         Displays framed preview table of proposed actions and requires user confirmation.
@@ -74,7 +81,13 @@ class InteractiveUI:
             AutobotTheme.render_error("No valid actions to execute due to file collisions or missing paths.")
             return False
 
-        if sys.stdout.isatty() and INQUIRER_AVAILABLE:
+        if yes:
+            return True
+
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            return True
+
+        if INQUIRER_AVAILABLE:
             try:
                 choice = inquirer.select(
                     message=f"Proposed {len(valid_actions)} file operation(s): Select action",
@@ -91,14 +104,20 @@ class InteractiveUI:
         return Confirm.ask(f"Execute these {len(valid_actions)} proposed actions?", default=True)
 
     @staticmethod
-    def prompt_undo_confirmation(session_id: str, action_count: int) -> bool:
+    def prompt_undo_confirmation(session_id: str, action_count: int, yes: bool = False) -> bool:
         """
         Asks user to confirm reversing a transaction history session.
         """
+        if yes:
+            return True
+
         AutobotTheme.get_console().print(
             f"\n[bold yellow]↩️  Undo Request:[/bold yellow] Reverse session [bold cyan]{session_id}[/bold cyan] ({action_count} file actions)"
         )
-        if sys.stdout.isatty() and INQUIRER_AVAILABLE:
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            return True
+
+        if INQUIRER_AVAILABLE:
             try:
                 return inquirer.confirm(
                     message=f"Reverse {action_count} file actions from last session?",

@@ -124,14 +124,21 @@ cliagent/
 - [x] **Phase 11: Dynamic Header & Status Bar Integration**: Wired `main.py` launcher to `AutobotREPL`, dual slash-command/AI input router, stream reconfigure, and unified Typer subcommands.
 - [x] **Phase 12: Interactive Action Cards & Confirmation Guardrails (`ui/interactive.py`)**: Built `InquirerPy` confirmation selection cards with Rich fallbacks for action execution, missing folder prompts, and undo session reversals.
 - [x] **Phase 13: Live Animated Spinners & AI Thinking States**: Added `AutobotTheme.status()` context manager wrapping directory search, file relocation, and AI intent parsing steps with live animated spinners.
-- [x] **Phase 14: End-to-End Verification & Integration (`tests/test_autobot.py`)**: Built automated integration test suite validating fuzzy search, single rename, file relocation, transaction log undo rollback, and SlashCommandRouter dispatching. All 14 phases complete!
+- [x] **Phase 14: End-to-End Verification & Integration (`tests/test_autobot.py`)**: Built automated integration test suite validating fuzzy search, single rename, file relocation, transaction log undo rollback, and SlashCommandRouter dispatching.
+- [x] **Phase 15: Universal Cloud LLM (BYOK), Dynamic Model Detection & Config Persistence**: Replaced vendor-locked Gemini REST calls with a universal OpenAI-compatible adapter supporting any cloud provider, added tiered config persistence (`~/.autobot/config.json`), `/key` command, and dynamic detection displaying `[No model available]` until configured.
+- [x] **Phase 16: Interactive Safety Guardrails & Missing Folder Verification**: Wired `InteractiveUI` confirmation dialogs into `/rename`, `/move`, and natural language AI commands; prompt and create missing target directories upon user consent; require confirmation before undo rollback; supported `--yes`/`-y` automated execution flag.
+- [ ] **Phase 17: Local Ollama Model Auto-Discovery & Dynamic Model Switching (`/model list`)**: Automatically query `/v1/models` from local Ollama/LM Studio to detect installed models, enhance `/model list` and `/model <name>` to select installed models, and provide actionable AI configuration guidance.
+- [ ] **Phase 18: Search Engine Precision (Fnmatch Wildcard / Glob Matching)**: Integrate `fnmatch` into `FileFinder._compute_score` so wildcard patterns (`*.png`, `*invoice*`) receive 100% match scores instead of fuzzy penalties.
+- [ ] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
 
 ---
 
 ## 7. Current Project Status
 
-- **Status**: All 14 Phases Successfully Completed (100% Production Ready).
-- **Last Action**: Built and executed `tests/test_autobot.py` end-to-end integration test suite. Verified fuzzy search, file relocation, single rename, undo rollback, and slash command routing cleanly (4/4 tests passed).
+- **Completed Phases**: Phases 1 through 16.
+- **Next Phase**: Phase 17 — Local Ollama Model Auto-Discovery & Dynamic Model Switching (`/model list`).
+- **Last Action**: Completed Phase 16 (Interactive safety guardrails, missing folder verification, undo confirmation, and `--yes` automation support). All 6 unit tests passing.
+
 
 
 

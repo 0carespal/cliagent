@@ -13,6 +13,7 @@ import typer
 from ui.theme import AutobotTheme
 from ui.repl import AutobotREPL
 from ui.tables import TableRenderer
+from ui.interactive import InteractiveUI
 from core.finder import FileFinder
 from core.renamer import FileRenamer
 from core.mover import FileMover
@@ -80,6 +81,7 @@ def rename_command(
     seq: Optional[str] = typer.Option(None, "--seq", help="Sequence pattern: e.g. photo_"),
     start_dir: str = typer.Option(".", "--start-dir", help="Directory to search for items to rename"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without modifying disk"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Execute immediately without confirmation prompt"),
 ):
     """
     ✏️ Renames single or multiple files/folders matching a query.
@@ -99,8 +101,8 @@ def rename_command(
             AutobotTheme.render_warning(f"No files matching '{query}' found to rename.")
             return
 
-        PlanRenderer.render_preview(actions, dry_run=dry_run)
-        if dry_run:
+        # Interactive confirmation guardrail
+        if not InteractiveUI.confirm_action_execution(actions, dry_run=dry_run, yes=yes):
             return
 
         executed, errors = renamer.execute_rename(actions)
@@ -121,6 +123,7 @@ def move_command(
     start_dir: str = typer.Option(".", "--start-dir", "-s", help="Directory to search for items to move"),
     ext: Optional[List[str]] = typer.Option(None, "--ext", "-e", help="Extension filters"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without modifying disk"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Execute immediately without confirmation prompt"),
 ):
     """
     🚚 Moves single or multiple files/folders to a target directory.
@@ -131,8 +134,23 @@ def move_command(
             AutobotTheme.render_warning(f"No files matching '{query}' found to move.")
             return
 
-        PlanRenderer.render_preview(actions, dry_run=dry_run)
-        if dry_run:
+        # Check if destination directory is missing
+        missing_dest = any(a.requires_dest_creation or a.status == "MISSING_DESTINATION" for a in actions)
+        if missing_dest:
+            resolved_target = Path(target_dir).resolve()
+            if not resolved_target.exists():
+                if InteractiveUI.prompt_create_destination(resolved_target, yes=yes):
+                    mover.create_destination_directory(resolved_target, user_confirmed=True)
+                    for a in actions:
+                        if a.status == "MISSING_DESTINATION":
+                            a.status = "OK"
+                            a.message = "Destination created. Ready to move."
+                else:
+                    AutobotTheme.render_warning("Destination creation cancelled. Move operation aborted.")
+                    return
+
+        # Interactive confirmation guardrail
+        if not InteractiveUI.confirm_action_execution(actions, dry_run=dry_run, yes=yes):
             return
 
         executed, errors = mover.execute_move(actions)
@@ -150,6 +168,7 @@ def move_command(
 def ask_command(
     prompt: str = typer.Argument(..., help="Natural language request"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Execute immediately without confirmation prompt"),
 ):
     """
     🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud LLMs (OpenAI, Groq, OpenRouter, etc.).
@@ -160,6 +179,7 @@ def ask_command(
 
     if not intent_data:
         AutobotTheme.render_error(f"AI Engine failed to parse request using provider: {provider_name}")
+        AutobotTheme.render_warning("💡 Tip: Use /key <api_key> to configure a Cloud LLM key, or start a local Ollama instance.")
         return
 
     AutobotTheme.render_success(f"Intent Parsed using provider: {provider_name}")
@@ -177,18 +197,20 @@ def ask_command(
         if not new_name:
             AutobotTheme.render_error("AI error: Missing target rename name.")
             return
-        rename_command(query=query, new_name=new_name, start_dir=source_dir, dry_run=dry_run)
+        rename_command(query=query, new_name=new_name, start_dir=source_dir, dry_run=dry_run, yes=yes)
     elif action == "move":
         if not target_dir:
             AutobotTheme.render_error("AI error: Missing target move directory.")
             return
-        move_command(query=query, target_dir=target_dir, start_dir=source_dir, ext=exts, dry_run=dry_run)
+        move_command(query=query, target_dir=target_dir, start_dir=source_dir, ext=exts, dry_run=dry_run, yes=yes)
     else:
         AutobotTheme.render_warning(f"Unknown action parsed by AI: {action}")
 
 
 @app.command("undo")
-def undo_command():
+def undo_command(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Execute undo immediately without confirmation prompt"),
+):
     """
     ↩️ Reverses the last move or rename transaction session.
     """
@@ -197,7 +219,14 @@ def undo_command():
         AutobotTheme.render_warning("No transaction history found to undo.")
         return
 
-    console.print(f"[cyan]Undoing last session:[/cyan] [bold]{last['session_id']}[/bold] ({len(last['records'])} actions)...")
+    session_id = last.get("session_id", "unknown")
+    records_count = len(last.get("records", []))
+
+    if not InteractiveUI.prompt_undo_confirmation(session_id, records_count, yes=yes):
+        AutobotTheme.render_warning("Undo operation cancelled by user.")
+        return
+
+    console.print(f"[cyan]Undoing session:[/cyan] [bold]{session_id}[/bold] ({records_count} actions)...")
     reversed_count, errors = logger.undo_last_session()
 
     if reversed_count > 0:

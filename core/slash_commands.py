@@ -12,6 +12,7 @@ from typing import List, Optional, Any
 import config
 from ui.theme import AutobotTheme
 from ui.tables import TableRenderer
+from ui.interactive import InteractiveUI
 from core.finder import FileFinder
 from core.renamer import FileRenamer
 from core.mover import FileMover
@@ -132,8 +133,11 @@ class SlashCommandRouter:
                 AutobotTheme.render_warning(f"No file matching query '{query}' was found to rename.")
                 return
 
-            PlanRenderer.render_preview(actions, dry_run=False)
-            
+            # Interactive confirmation guardrail
+            if not InteractiveUI.confirm_action_execution(actions, dry_run=False):
+                AutobotTheme.render_warning("Rename operation cancelled by user.")
+                return
+
             # Execute rename actions
             with AutobotTheme.status("Executing file rename operation..."):
                 executed, errors = self.renamer.execute_rename(actions)
@@ -168,8 +172,26 @@ class SlashCommandRouter:
                 AutobotTheme.render_warning(f"No files/folders matching '{query}' found to move.")
                 return
 
-            PlanRenderer.render_preview(actions, dry_run=False)
-            
+            # Check if destination directory is missing
+            missing_dest = any(a.requires_dest_creation or a.status == "MISSING_DESTINATION" for a in actions)
+            if missing_dest:
+                target_path = Path(target_dir) if Path(target_dir).is_absolute() else (repl_instance.cwd / target_dir)
+                if not target_path.exists():
+                    if InteractiveUI.prompt_create_destination(target_path):
+                        self.mover.create_destination_directory(target_path, user_confirmed=True)
+                        for a in actions:
+                            if a.status == "MISSING_DESTINATION":
+                                a.status = "OK"
+                                a.message = "Destination created. Ready to move."
+                    else:
+                        AutobotTheme.render_warning("Destination creation cancelled. Move operation aborted.")
+                        return
+
+            # Interactive confirmation guardrail
+            if not InteractiveUI.confirm_action_execution(actions, dry_run=False):
+                AutobotTheme.render_warning("Move operation cancelled by user.")
+                return
+
             # Execute move actions
             with AutobotTheme.status("Executing file move operation..."):
                 executed, errors = self.mover.execute_move(actions)
@@ -194,8 +216,13 @@ class SlashCommandRouter:
 
         session_id = last_session.get("session_id", "unknown")
         records_count = len(last_session.get("records", []))
-        
-        AutobotTheme.get_console().print(f"[cyan]Undoing last session:[/cyan] [bold]{session_id}[/bold] ({records_count} action(s))...")
+
+        # Interactive undo confirmation
+        if not InteractiveUI.prompt_undo_confirmation(session_id, records_count):
+            AutobotTheme.render_warning("Undo operation cancelled by user.")
+            return
+
+        AutobotTheme.get_console().print(f"[cyan]Undoing session:[/cyan] [bold]{session_id}[/bold] ({records_count} action(s))...")
         reversed_count, errors = self.logger.undo_last_session()
 
         if reversed_count > 0:
