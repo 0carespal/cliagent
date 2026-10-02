@@ -27,11 +27,11 @@ class AIIntentParser:
         :param user_prompt: Plain English command (e.g. "Move all PNG files from Desktop to Pictures")
         :return: Tuple of (parsed_json_dict, provider_name)
         """
-        # 1. Try Local LLM (Ollama / LM Studio with Gemma 4B / Qwen 4B)
+        # 1. Try Local LLM (Ollama / LM Studio)
         if self.local_client.is_available():
             result = self.local_client.parse_intent(user_prompt)
             if result:
-                return result, f"Local LLM ({self.local_client.model_name})"
+                return result, f"Local LLM ({self.local_client.resolve_model_name()})"
 
         # 2. Fall back to Cloud LLM API if available
         if self.cloud_client.is_available():

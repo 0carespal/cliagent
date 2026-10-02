@@ -61,8 +61,9 @@ class SlashCommandRouter:
             self.handle_undo(repl_instance)
         elif cmd == "/key":
             self.handle_key(args, repl_instance)
-        elif cmd == "/model":
-            self.handle_model(args, repl_instance)
+        elif cmd in ["/model", "/models"]:
+            model_args = ["list"] if (cmd == "/models" and not args) else args
+            self.handle_model(model_args, repl_instance)
         elif cmd == "/status":
             self.handle_status(repl_instance)
         elif cmd in ["/help", "/h", "/?"]:
@@ -270,32 +271,109 @@ class SlashCommandRouter:
 
     def handle_model(self, args: List[str], repl_instance: Any) -> None:
         """
-        🧠 Handles /model [local|cloud|model_name]
-        Toggles or switches active LLM model provider.
+        🧠 Handles /model [list|local|cloud|model_name]
+        Toggles, lists, or switches active LLM model provider.
         """
+        from ai.local_llm import LocalLLMClient
+        from ai.cloud_llm import CloudLLMClient
+
+        local_client = LocalLLMClient()
+        cloud_client = CloudLLMClient()
         cfg = config.load_user_config()
         cloud_model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
         cloud_label = f"Cloud LLM ({cloud_model_name})"
-        local_label = f"Local LLM ({config.LOCAL_LLM_MODEL})"
 
+        # 1. /model list or /models
+        if args and args[0].lower() in ["list", "ls", "--list", "-l"]:
+            installed_local = local_client.list_installed_models()
+            lines = []
+            
+            lines.append("[bold cyan]Local Models (Ollama at http://localhost:11434):[/bold cyan]")
+            if installed_local:
+                for m in installed_local:
+                    active_marker = " [bold green]✓ Active[/bold green]" if m in repl_instance.model_name else ""
+                    lines.append(f"  • [bold white]{m}[/bold white]{active_marker}")
+            else:
+                lines.append("  [dim]• No local models detected (ensure Ollama is running)[/dim]")
+
+            lines.append("\n[bold cyan]Cloud LLM (Universal OpenAI-compatible):[/bold cyan]")
+            key_status = "[bold green]Configured[/bold green]" if cloud_client.is_available() else "[dim yellow]No API Key (use /key)[/dim yellow]"
+            cloud_active = " [bold green]✓ Active[/bold green]" if "Cloud" in repl_instance.model_name else ""
+            lines.append(f"  • [bold white]{cloud_model_name}[/bold white] ({key_status}){cloud_active}")
+
+            lines.append(f"\n[bold white]Current Active Session Model:[/bold white] [bold yellow]{repl_instance.model_name}[/bold yellow]")
+
+            AutobotTheme.render_card(
+                title="🧠 Available LLM Models",
+                content="\n".join(lines),
+                style="cyan",
+                subtitle="Switch model with: /model <name> or /model cloud"
+            )
+            return
+
+        installed_local = local_client.list_installed_models()
+        best_local_name = local_client.resolve_model_name() if installed_local else "qwen2.5:4b"
+        local_label = f"Local LLM ({best_local_name})"
+
+        # 2. /model (no args -> toggle)
         if not args:
             current = repl_instance.model_name
             if current == "No model available":
-                from ai.cloud_llm import CloudLLMClient
-                new_model = cloud_label if CloudLLMClient().is_available() else local_label
+                if cloud_client.is_available():
+                    new_model = cloud_label
+                elif installed_local:
+                    new_model = local_label
+                else:
+                    AutobotTheme.render_warning("No model available. Set a key via: /key <API_KEY> or run /model list.")
+                    return
             else:
                 new_model = cloud_label if "Local" in current else local_label
+
             repl_instance.set_model(new_model)
+            if "Local" in new_model:
+                config.save_user_config("local_llm_model", best_local_name)
             AutobotTheme.render_success(f"Switched LLM Provider model to: [bold yellow]{new_model}[/bold yellow]")
             return
 
-        choice = args[0].lower()
-        if choice in ["local", "gemma", "qwen", "ollama"]:
+        choice = args[0]
+        choice_lower = choice.lower()
+
+        # 3. Switch to Cloud
+        if choice_lower in ["cloud", "openai", "remote", "api"]:
+            repl_instance.set_model(cloud_label)
+            AutobotTheme.render_success(f"Switched LLM Provider to: [bold yellow]{cloud_label}[/bold yellow]")
+            if not cloud_client.is_available():
+                AutobotTheme.render_warning("⚠️ Note: Cloud LLM API key not configured yet. Run: [bold cyan]/key <YOUR_API_KEY>[/bold cyan]")
+            return
+
+        # 4. Switch to Local
+        if choice_lower in ["local", "ollama"]:
+            if not installed_local:
+                AutobotTheme.render_warning("No local models found in Ollama. Pull one with e.g. [bold cyan]ollama run qwen3.5:4b[/bold cyan]")
+                return
             model_name = local_label
-        elif choice in ["cloud", "openai", "remote", "api", "llm"]:
-            model_name = cloud_label
+            config.save_user_config("local_llm_model", best_local_name)
+            repl_instance.set_model(model_name)
+            AutobotTheme.render_success(f"Switched to Local LLM model: [bold yellow]{model_name}[/bold yellow]")
+            return
+
+        # 5. Check if choice matches any installed local model
+        matched_local = None
+        for m in installed_local:
+            if m.lower() == choice_lower:
+                matched_local = m
+                break
+        if not matched_local:
+            for m in installed_local:
+                if choice_lower in m.lower():
+                    matched_local = m
+                    break
+
+        if matched_local:
+            model_name = f"Local LLM ({matched_local})"
+            config.save_user_config("local_llm_model", matched_local)
         else:
-            model_name = args[0]
+            model_name = choice
 
         repl_instance.set_model(model_name)
         AutobotTheme.render_success(f"Updated LLM Provider model to: [bold yellow]{model_name}[/bold yellow]")
@@ -325,15 +403,15 @@ class SlashCommandRouter:
         Renders slash command cheat-sheet card.
         """
         help_text = (
-            "[bold cyan]/locate <query> [--ext ...][/bold cyan]  🔍 Locate files matching query using fuzzy search\n"
-            "[bold cyan]/rename <query> <new_name>[/bold cyan]   ✏️  Rename matching file/folder\n"
-            "[bold cyan]/move <query> <target_dir>[/bold cyan]   🚚 Move matching files to target folder\n"
-            "[bold cyan]/undo[/bold cyan]                         ↩️  Reverse last move/rename transaction\n"
-            "[bold cyan]/key [api_key][/bold cyan]                🔑 View or configure Cloud LLM API key\n"
-            "[bold cyan]/model [local|cloud][/bold cyan]          🧠 Toggle between Local (Ollama) & Cloud LLM\n"
-            "[bold cyan]/status[/bold cyan]                       📊 View current active folder, model, & undo stack\n"
-            "[bold cyan]/clear[/bold cyan]                        🧹 Clear terminal screen canvas\n"
-            "[bold cyan]/exit[/bold cyan]                         ❌ Exit Autobot REPL session\n\n"
+            "[bold cyan]/locate <query> [--ext ...][/bold cyan]     🔍 Locate files matching query using fuzzy search\n"
+            "[bold cyan]/rename <query> <new_name>[/bold cyan]      ✏️  Rename matching file/folder\n"
+            "[bold cyan]/move <query> <target_dir>[/bold cyan]      🚚 Move matching files to target folder\n"
+            "[bold cyan]/undo[/bold cyan]                            ↩️  Reverse last move/rename transaction\n"
+            "[bold cyan]/key [api_key][/bold cyan]                   🔑 View or configure Cloud LLM API key\n"
+            "[bold cyan]/model [list|local|cloud][/bold cyan]     🧠 View models (/model list) or switch active LLM\n"
+            "[bold cyan]/status[/bold cyan]                          📊 View current active folder, model, & undo stack\n"
+            "[bold cyan]/clear[/bold cyan]                           🧹 Clear terminal screen canvas\n"
+            "[bold cyan]/exit[/bold cyan]                            ❌ Exit Autobot REPL session\n\n"
             "[dim white]💡 Pro Tip: Type any plain English prompt without a slash to use natural language AI processing![/dim white]"
         )
         AutobotTheme.render_card(

@@ -32,6 +32,7 @@ class AutobotCompleter(Completer):
         "/undo",
         "/key",
         "/model",
+        "/models",
         "/status",
         "/help",
         "/clear",

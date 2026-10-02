@@ -164,7 +164,31 @@ class TestAutobotCLI(unittest.TestCase):
         # Test prompt_undo_confirmation
         self.assertTrue(InteractiveUI.prompt_undo_confirmation("session_123", 2, yes=True))
 
+    def test_model_discovery_and_selection(self):
+        """Tests Phase 17 local model discovery and /model slash commands."""
+        from ai.local_llm import LocalLLMClient
+        local_client = LocalLLMClient()
+        installed = local_client.list_installed_models()
+        self.assertIsInstance(installed, list)
+
+        router = SlashCommandRouter()
+        repl = AutobotREPL(model_name="No model available")
+
+        # Test /model list
+        self.assertTrue(router.dispatch("/model list", repl))
+        # Test /models alias
+        self.assertTrue(router.dispatch("/models", repl))
+        # Test /model local
+        self.assertTrue(router.dispatch("/model local", repl))
+        self.assertTrue("Local LLM" in repl.model_name)
+
+        # Clean up test config
+        import config
+        if config.CONFIG_FILE_PATH.exists():
+            config.CONFIG_FILE_PATH.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
