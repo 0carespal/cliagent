@@ -5,7 +5,7 @@ missing directory prompts, collision checks, and cross-volume file relocation.
 """
 import shutil
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
 from dataclasses import dataclass
 
 
@@ -173,3 +173,22 @@ class FileMover:
                 failed.append(action)
 
         return successful, failed
+
+    @classmethod
+    def prepare_move(
+        cls,
+        query: str,
+        target_dir: Union[str, Path],
+        start_dir: Union[str, Path] = ".",
+        extensions: Optional[List[str]] = None,
+    ) -> List[MoveAction]:
+        """
+        Locates items matching query using FileFinder and prepares MoveAction objects.
+        """
+        from core.finder import FileFinder
+        finder = FileFinder()
+        results = finder.search(query=query, start_dir=start_dir, extensions=extensions)
+        sources = [r.path for r in results]
+        return cls.prepare_move_actions(sources=sources, target_dir=Path(target_dir))
+
+    execute_move = execute_move_actions

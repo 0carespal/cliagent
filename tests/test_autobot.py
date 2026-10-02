@@ -187,6 +187,48 @@ class TestAutobotCLI(unittest.TestCase):
         if config.CONFIG_FILE_PATH.exists():
             config.CONFIG_FILE_PATH.unlink()
 
+    def test_fnmatch_wildcard_matching(self):
+        """Tests Phase 18 fnmatch wildcard and glob precision matching in FileFinder."""
+        finder = FileFinder()
+
+        # Wildcard extension search: *.pdf should match annual_report_2024.pdf with score 100.0
+        pdf_results = finder.search("*.pdf", start_dir=self.root_path)
+        self.assertEqual(len(pdf_results), 1)
+        self.assertEqual(pdf_results[0].name, "annual_report_2024.pdf")
+        self.assertEqual(pdf_results[0].match_score, 100.0)
+
+        # Wildcard substring glob: *report*
+        report_results = finder.search("*report*", start_dir=self.root_path)
+        self.assertEqual(len(report_results), 1)
+        self.assertEqual(report_results[0].name, "annual_report_2024.pdf")
+        self.assertEqual(report_results[0].match_score, 100.0)
+
+        # Wildcard single char ?: screenshot_??.png
+        png_results = finder.search("screenshot_??.png", start_dir=self.root_path)
+        self.assertEqual(len(png_results), 1)
+        self.assertEqual(png_results[0].name, "screenshot_01.png")
+        self.assertEqual(png_results[0].match_score, 100.0)
+
+        # Non-matching wildcard should return empty list (no false positive fuzzy matches)
+        empty_results = finder.search("*.xlsx", start_dir=self.root_path)
+        self.assertEqual(len(empty_results), 0)
+
+        # Test FileMover with wildcard query
+        target_dir = self.root_path / "PngFolder"
+        move_actions = FileMover.prepare_move("*.png", target_dir=target_dir, start_dir=self.root_path)
+        self.assertEqual(len(move_actions), 1)
+        self.assertEqual(move_actions[0].source_path.name, "screenshot_01.png")
+
+        # Test FileRenamer with wildcard query
+        rename_actions = FileRenamer.prepare_single_rename(
+            query="*report*",
+            new_name="annual_report_final.pdf",
+            start_dir=self.root_path
+        )
+        self.assertEqual(len(rename_actions), 1)
+        self.assertEqual(rename_actions[0].old_name, "annual_report_2024.pdf")
+        self.assertEqual(rename_actions[0].new_name, "annual_report_final.pdf")
+
 
 if __name__ == "__main__":
     unittest.main()

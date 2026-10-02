@@ -4,6 +4,7 @@ Handles recursive directory traversal, directory pruning (ignoring junk folders)
 fuzzy string matching via rapidfuzz, and file metadata filtering (extension, size, type).
 """
 import os
+import fnmatch
 from pathlib import Path
 from typing import List, Dict, Optional, Set, Union
 from dataclasses import dataclass
@@ -111,7 +112,11 @@ class FileFinder:
             if search_type in ("folders", "all"):
                 for dirname in dirnames:
                     full_dir_path = current_path / dirname
-                    score = self._compute_score(query, dirname)
+                    try:
+                        rel_dir = str(full_dir_path.relative_to(root_path)).replace("\\", "/")
+                    except ValueError:
+                        rel_dir = dirname
+                    score = self._compute_score(query, dirname, rel_path=rel_dir)
 
                     if score >= min_score:
                         results.append(
@@ -149,8 +154,12 @@ class FileFinder:
                     if max_bytes is not None and file_size > max_bytes:
                         continue
 
-                    # Compute fuzzy similarity score
-                    score = self._compute_score(query, filename)
+                    # Compute similarity score (wildcard glob or fuzzy match)
+                    try:
+                        rel_file = str(file_path.relative_to(root_path)).replace("\\", "/")
+                    except ValueError:
+                        rel_file = filename
+                    score = self._compute_score(query, filename, rel_path=rel_file)
 
                     if score >= min_score:
                         results.append(
@@ -172,14 +181,49 @@ class FileFinder:
 
         return results
 
-    def _compute_score(self, query: str, candidate_name: str) -> float:
+    def _compute_score(self, query: str, candidate_name: str, rel_path: Optional[str] = None) -> float:
         """
-        Computes fuzzy similarity score between query and candidate_name.
+        Computes match score between query and candidate_name (and optional rel_path).
+        Supports:
+        - Exact matches (score 100.0)
+        - Glob wildcard patterns (*, ?, []) using fnmatch (score 100.0 if matched, 0.0 if not)
+        - RapidFuzz WRatio fuzzy matching for natural language / partial queries
         Returns a float between 0.0 and 100.0.
         """
         if not query or query == "*":
             return 100.0  # Wildcard or empty query matches everything with top score
 
+        q_lower = query.lower()
+        c_lower = candidate_name.lower()
+
+        normalized_q = q_lower.replace("\\", "/")
+        normalized_rel = rel_path.lower().replace("\\", "/") if rel_path else None
+
+        # Check for glob/wildcard patterns (*, ?, [])
+        has_wildcard = any(ch in query for ch in ("*", "?", "["))
+        if has_wildcard:
+            # 1. Direct filename pattern match (e.g. *.png, invoice_*.pdf)
+            if fnmatch.fnmatchcase(c_lower, q_lower):
+                return 100.0
+            # 2. Relative path pattern match if query contains slashes (e.g. docs/*.pdf, src/**/test_*.py)
+            if normalized_rel and ("/" in normalized_q):
+                if fnmatch.fnmatchcase(normalized_rel, normalized_q):
+                    return 100.0
+            return 0.0
+
+        # Exact match on filename
+        if q_lower == c_lower:
+            return 100.0
+
+        # Exact match on relative path
+        if normalized_rel and normalized_q == normalized_rel:
+            return 100.0
+
         # Using WRatio (Weighted Ratio) which handles partial matches, case differences,
         # and substring matches intelligently.
-        return float(fuzz.WRatio(query.lower(), candidate_name.lower()))
+        score = float(fuzz.WRatio(q_lower, c_lower))
+        if normalized_rel and ("/" in normalized_q):
+            rel_score = float(fuzz.WRatio(normalized_q, normalized_rel))
+            score = max(score, rel_score)
+
+        return score

@@ -128,16 +128,16 @@ cliagent/
 - [x] **Phase 15: Universal Cloud LLM (BYOK), Dynamic Model Detection & Config Persistence**: Replaced vendor-locked Gemini REST calls with a universal OpenAI-compatible adapter supporting any cloud provider, added tiered config persistence (`~/.autobot/config.json`), `/key` command, and dynamic detection displaying `[No model available]` until configured.
 - [x] **Phase 16: Interactive Safety Guardrails & Missing Folder Verification**: Wired `InteractiveUI` confirmation dialogs into `/rename`, `/move`, and natural language AI commands; prompt and create missing target directories upon user consent; require confirmation before undo rollback; supported `--yes`/`-y` automated execution flag.
 - [x] **Phase 17: Local Ollama Model Auto-Discovery & Dynamic Model Switching (`/model list`)**: Automatically query `/v1/models` from local Ollama/LM Studio to detect installed models, enhance `/model list` and `/model <name>` to select installed models, and provide actionable AI configuration guidance.
-- [ ] **Phase 18: Search Engine Precision (Fnmatch Wildcard / Glob Matching)**: Integrate `fnmatch` into `FileFinder._compute_score` so wildcard patterns (`*.png`, `*invoice*`) receive 100% match scores instead of fuzzy penalties.
+- [x] **Phase 18: Search Engine Precision (Fnmatch Wildcard / Glob Matching)**: Integrate `fnmatch` into `FileFinder._compute_score` so wildcard patterns (`*.png`, `*invoice*`) receive 100% match scores instead of fuzzy penalties.
 - [ ] **Phase 19: Windows Cross-Drive Undo & Case-Preserving Renaming**: Replace `Path.rename` with `shutil.move` in `core/safety.py` for cross-volume reliability, and handle case-only renaming on case-insensitive filesystems.
 
 ---
 
 ## 7. Current Project Status
 
-- **Completed Phases**: Phases 1 through 17.
-- **Next Phase**: Phase 18 — Search Engine Precision (Fnmatch Wildcard / Glob Matching).
-- **Last Action**: Completed Phase 17 (Local Ollama model auto-discovery, `/model list` & `/models` command, dynamic substring model matching, and persistent model selection). All 7 unit tests passing.
+- **Completed Phases**: Phases 1 through 18.
+- **Next Phase**: Phase 19 — Windows Cross-Drive Undo & Case-Preserving Renaming.
+- **Last Action**: Completed Phase 18 (fnmatch glob wildcard precision matching, relative path evaluation, and query bridging for FileMover and FileRenamer). All 8 unit tests passing.
 
 
 

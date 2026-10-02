@@ -5,7 +5,7 @@ sequence numbering, and collision checking.
 """
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 
 
@@ -39,11 +39,9 @@ class FileRenamer:
     Handles single and bulk renaming operations with safety checks.
     """
 
-    @staticmethod
-    def prepare_single_rename(source_path: Path, new_name: str) -> RenameAction:
-        """
-        Validates and prepares a single file/folder rename action.
-        """
+    @classmethod
+    def _prepare_single_action(cls, source_path: Path, new_name: str) -> RenameAction:
+        """Helper validating and creating a single RenameAction object."""
         source = Path(source_path).resolve()
         if not source.exists():
             return RenameAction(
@@ -91,9 +89,36 @@ class FileRenamer:
             message="Ready to rename."
         )
 
-    @staticmethod
+    @classmethod
+    def prepare_single_rename(
+        cls,
+        source_path: Optional[Union[str, Path]] = None,
+        new_name: str = "",
+        query: Optional[str] = None,
+        start_dir: Union[str, Path] = "."
+    ) -> Any:
+        """
+        Validates and prepares a single file/folder rename action.
+        If called with (source_path, new_name), returns RenameAction.
+        If called with (query, new_name, start_dir), returns List[RenameAction].
+        """
+        if query:
+            from core.finder import FileFinder
+            finder = FileFinder()
+            results = finder.search(query=query, start_dir=start_dir, max_results=1)
+            if not results:
+                return []
+            return [cls._prepare_single_action(results[0].path, new_name)]
+
+        if source_path:
+            return cls._prepare_single_action(Path(source_path), new_name)
+
+        raise ValueError("Either source_path or query must be provided to prepare_single_rename")
+
+    @classmethod
     def prepare_bulk_rename(
-        items: List[Path],
+        cls,
+        items: Optional[List[Path]] = None,
         prefix: str = "",
         suffix: str = "",
         find_str: str = "",
@@ -101,10 +126,25 @@ class FileRenamer:
         case_format: Optional[str] = None,  # "snake", "kebab", "lower", "upper"
         sequence_prefix: Optional[str] = None,  # e.g., "vacation_" -> vacation_01.jpg
         start_number: int = 1,
+        query: Optional[str] = None,
+        start_dir: Union[str, Path] = ".",
+        case_type: Optional[str] = None,
+        seq_pattern: Optional[str] = None,
     ) -> List[RenameAction]:
         """
         Generates a list of proposed RenameActions for bulk renaming.
+        Supports passing items directly or finding them via query.
         """
+        if items is None and query:
+            from core.finder import FileFinder
+            finder = FileFinder()
+            results = finder.search(query=query, start_dir=start_dir)
+            items = [r.path for r in results]
+        elif items is None:
+            items = []
+
+        active_case = case_type or case_format
+        active_seq = seq_pattern if seq_pattern is not None else sequence_prefix
         actions: List[RenameAction] = []
         # Track proposed target names in this batch to detect internal collisions
         proposed_targets = set()
@@ -205,6 +245,8 @@ class FileRenamer:
                 failed.append(action)
 
         return successful, failed
+
+    execute_rename = execute_rename_actions
 
     @staticmethod
     def _to_snake_case(name: str) -> str:
