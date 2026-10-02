@@ -132,11 +132,14 @@ class TestAutobotCLI(unittest.TestCase):
 
     def test_default_model_detection(self):
         """Verifies default REPL model detection handles absence of models cleanly."""
+        from unittest.mock import patch
         from ui.repl import detect_active_model
-        model = detect_active_model()
-        self.assertEqual(model, "No model available")
-        repl = AutobotREPL()
-        self.assertEqual(repl.model_name, "No model available")
+        with patch("config.load_user_config", return_value={}), \
+             patch("ai.local_llm.LocalLLMClient.is_available", return_value=False):
+            model = detect_active_model()
+            self.assertEqual(model, "No model available")
+            repl = AutobotREPL(model_name=model)
+            self.assertEqual(repl.model_name, "No model available")
 
     def test_interactive_guardrails(self):
         """Tests InteractiveUI confirmation, missing directory creation, and undo guardrails."""
@@ -277,6 +280,67 @@ class TestAutobotCLI(unittest.TestCase):
         self.assertEqual(len(fail), 0)
         self.assertIn("DOC_ONE.txt", os.listdir(self.root_path))
         self.assertIn("DOC_TWO.txt", os.listdir(self.root_path))
+
+    def test_resolve_user_path(self):
+        """Tests smart path alias resolution for system folders, home (~), and relative dirs."""
+        from config import resolve_user_path
+        home = Path.home().resolve()
+
+        # Test ~ expansion
+        self.assertEqual(resolve_user_path("~"), home)
+        self.assertEqual(resolve_user_path("~/Projects"), home / "Projects")
+
+        # Test common OS shortcuts (case-insensitive)
+        self.assertEqual(resolve_user_path("downloads"), (home / "Downloads").resolve())
+        self.assertEqual(resolve_user_path("Desktop"), (home / "Desktop").resolve())
+        self.assertEqual(resolve_user_path("Documents/Reports"), (home / "Documents" / "Reports").resolve())
+
+        # Test relative path with base_dir override
+        sub_folder = self.root_path / "SubFolder"
+        self.assertEqual(resolve_user_path("SubFolder", base_dir=self.root_path), sub_folder.resolve())
+
+        # Test absolute path preservation
+        self.assertEqual(resolve_user_path(str(self.root_path)), self.root_path)
+
+    def test_renamer_camel_and_title_case(self):
+        """Tests camelCase and TitleCase bulk transformations."""
+        f1 = self.root_path / "my_user_profile.py"
+        f2 = self.root_path / "parse_csv_data.py"
+        f1.write_text("profile", encoding="utf-8")
+        f2.write_text("csv", encoding="utf-8")
+
+        # Test camelCase
+        camel_actions = FileRenamer.prepare_bulk_rename(
+            items=[f1],
+            case_format="camel"
+        )
+        self.assertEqual(len(camel_actions), 1)
+        self.assertEqual(camel_actions[0].new_name, "myUserProfile.py")
+
+        # Test TitleCase
+        title_actions = FileRenamer.prepare_bulk_rename(
+            items=[f2],
+            case_format="title"
+        )
+        self.assertEqual(len(title_actions), 1)
+        self.assertEqual(title_actions[0].new_name, "ParseCsvData.py")
+
+    def test_cd_slash_command(self):
+        """Tests /cd command with path alias resolution."""
+        router = SlashCommandRouter()
+        repl = AutobotREPL()
+
+        sub_dir = self.root_path / "TestWorkspace"
+        sub_dir.mkdir(exist_ok=True)
+
+        # /cd to relative folder
+        repl.cwd = self.root_path
+        self.assertTrue(router.dispatch("/cd TestWorkspace", repl))
+        self.assertEqual(repl.cwd, sub_dir.resolve())
+
+        # /cd to ~
+        self.assertTrue(router.dispatch("/cd ~", repl))
+        self.assertEqual(repl.cwd, Path.home().resolve())
 
 
 if __name__ == "__main__":

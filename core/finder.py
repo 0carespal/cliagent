@@ -10,7 +10,7 @@ from typing import List, Dict, Optional, Set, Union
 from dataclasses import dataclass
 from rapidfuzz import fuzz
 
-from config import DEFAULT_IGNORED_DIRS
+from config import DEFAULT_IGNORED_DIRS, resolve_user_path
 
 
 @dataclass
@@ -74,7 +74,7 @@ class FileFinder:
         :param max_results: Cap total matches returned (optional)
         :return: List of SearchResult objects sorted by match_score descending
         """
-        root_path = Path(start_dir).resolve()
+        root_path = resolve_user_path(start_dir)
         if not root_path.exists():
             raise FileNotFoundError(f"Search root directory does not exist: {root_path}")
 

@@ -91,11 +91,7 @@ class SlashCommandRouter:
             return
 
         target_str = " ".join(args).strip("\"'")
-        new_path = Path(target_str)
-        if not new_path.is_absolute():
-            new_path = (repl_instance.cwd / new_path).resolve()
-        else:
-            new_path = new_path.resolve()
+        new_path = config.resolve_user_path(target_str, base_dir=repl_instance.cwd)
 
         if not new_path.exists() or not new_path.is_dir():
             AutobotTheme.render_error(f"Directory not found: '{new_path}'")
@@ -137,14 +133,15 @@ class SlashCommandRouter:
             else:
                 idx += 1
 
-        AutobotTheme.get_console().print(f"[dim cyan]Searching for:[/dim cyan] '{query}' in [bold]{start_dir}[/bold]...")
+        resolved_start = str(config.resolve_user_path(start_dir, base_dir=repl_instance.cwd))
+        AutobotTheme.get_console().print(f"[dim cyan]Searching for:[/dim cyan] '{query}' in [bold]{resolved_start}[/bold]...")
         try:
             with AutobotTheme.status(f"Searching directory tree for '{query}'..."):
-                results = self.finder.search(query=query, start_dir=start_dir, extensions=exts)
+                results = self.finder.search(query=query, start_dir=resolved_start, extensions=exts)
             TableRenderer.render_search_results(results, query=query)
             if not results:
                 AutobotTheme.render_warning(
-                    f"No files matching '{query}' found in '{start_dir}'.\n"
+                    f"No files matching '{query}' found in '{resolved_start}'.\n"
                     f"💡 [dim]Tip: If your files are in a different folder, specify the parent directory with: [bold cyan]/locate '{query}' --start-dir <parent_path>[/bold cyan] or switch with [bold cyan]/cd <path>[/bold cyan][/dim]"
                 )
         except Exception as e:
@@ -174,16 +171,18 @@ class SlashCommandRouter:
             else:
                 idx += 1
 
+        resolved_start = str(config.resolve_user_path(start_dir, base_dir=repl_instance.cwd))
+
         try:
-            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}' in '{start_dir}'..."):
+            with AutobotTheme.status(f"Preparing rename for '{query}' -> '{new_name}' in '{resolved_start}'..."):
                 actions = self.renamer.prepare_single_rename(
                     query=query,
                     new_name=new_name,
-                    start_dir=start_dir
+                    start_dir=resolved_start
                 )
             if not actions:
                 AutobotTheme.render_warning(
-                    f"No file matching query '{query}' was found in '{start_dir}'.\n"
+                    f"No file matching query '{query}' was found in '{resolved_start}'.\n"
                     f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/rename '{query}' '{new_name}' --start-dir <parent_folder>[/bold cyan] or switch folders with [bold cyan]/cd <path>[/bold cyan][/dim]"
                 )
                 return
@@ -229,24 +228,27 @@ class SlashCommandRouter:
             else:
                 idx += 1
 
+        resolved_start = str(config.resolve_user_path(start_dir, base_dir=repl_instance.cwd))
+        resolved_target = str(config.resolve_user_path(target_dir, base_dir=repl_instance.cwd))
+
         try:
-            with AutobotTheme.status(f"Preparing relocation for '{query}' -> '{target_dir}'..."):
+            with AutobotTheme.status(f"Preparing relocation for '{query}' -> '{resolved_target}'..."):
                 actions = self.mover.prepare_move(
                     query=query,
-                    target_dir=target_dir,
-                    start_dir=start_dir
+                    target_dir=resolved_target,
+                    start_dir=resolved_start
                 )
             if not actions:
                 AutobotTheme.render_warning(
-                    f"No files/folders matching '{query}' found in '{start_dir}'.\n"
-                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/move '{query}' '{target_dir}' --start-dir <parent_path>[/bold cyan] or switch with [bold cyan]/cd <path>[/bold cyan][/dim]"
+                    f"No files/folders matching '{query}' found in '{resolved_start}'.\n"
+                    f"💡 [dim]Tip: Specify the parent directory with: [bold cyan]/move '{query}' '{resolved_target}' --start-dir <parent_path>[/bold cyan] or switch with [bold cyan]/cd <path>[/bold cyan][/dim]"
                 )
                 return
 
             # Check if destination directory is missing
             missing_dest = any(a.requires_dest_creation or a.status == "MISSING_DESTINATION" for a in actions)
             if missing_dest:
-                target_path = Path(target_dir) if Path(target_dir).is_absolute() else (repl_instance.cwd / target_dir)
+                target_path = Path(resolved_target)
                 if not target_path.exists():
                     if InteractiveUI.prompt_create_destination(target_path):
                         self.mover.create_destination_directory(target_path, user_confirmed=True)

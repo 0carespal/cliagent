@@ -84,3 +84,46 @@ LLM_API_KEY = os.getenv(
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", _user_cfg.get("llm_base_url", "https://api.openai.com/v1"))
 LLM_MODEL = os.getenv("LLM_MODEL", _user_cfg.get("llm_model", "gpt-4o-mini"))
 
+
+def resolve_user_path(path_input: os.PathLike, base_dir: Path = None) -> Path:
+    """
+    Resolves user-entered path strings, expanding:
+    - User home '~' (e.g. '~/Downloads' -> 'C:/Users/.../Downloads')
+    - Standard OS folder aliases: 'Desktop', 'Downloads', 'Documents', 'Pictures', 'Music', 'Videos'
+    - Relative paths against base_dir (defaults to Path.cwd())
+    - Absolute paths
+    """
+    if isinstance(path_input, Path):
+        p = path_input
+    else:
+        clean_str = str(path_input).strip("\"'")
+        p = Path(clean_str)
+
+    # Expand tilde ~
+    p = p.expanduser()
+
+    # Check for standard user directory aliases if single-segment or leading segment
+    first_part = p.parts[0].lower() if p.parts else ""
+    standard_aliases = {
+        "desktop": Path.home() / "Desktop",
+        "downloads": Path.home() / "Downloads",
+        "documents": Path.home() / "Documents",
+        "pictures": Path.home() / "Pictures",
+        "music": Path.home() / "Music",
+        "videos": Path.home() / "Videos",
+    }
+
+    if first_part in standard_aliases:
+        alias_root = standard_aliases[first_part]
+        if len(p.parts) > 1:
+            p = alias_root.joinpath(*p.parts[1:])
+        else:
+            p = alias_root
+        return p.resolve()
+
+    if not p.is_absolute():
+        base = base_dir if base_dir is not None else Path.cwd()
+        return (base / p).resolve()
+
+    return p.resolve()
+

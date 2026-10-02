@@ -20,6 +20,7 @@ from core.mover import FileMover
 from core.safety import TransactionLogger, PlanRenderer
 from core.slash_commands import SlashCommandRouter
 from ai.intent_parser import AIIntentParser
+from config import resolve_user_path
 
 # Ensure UTF-8 encoding on Windows console streams safely
 if hasattr(sys.stdout, 'reconfigure'):
@@ -55,11 +56,12 @@ def locate_command(
     """
     🔍 Locates files or folders matching a query across directories with fuzzy matching.
     """
-    console.print(f"[cyan]Searching for:[/cyan] '{query}' in [bold]{start_dir}[/bold]...")
+    resolved_start = str(resolve_user_path(start_dir))
+    console.print(f"[cyan]Searching for:[/cyan] '{query}' in [bold]{resolved_start}[/bold]...")
     try:
         results = finder.search(
             query=query,
-            start_dir=start_dir,
+            start_dir=resolved_start,
             min_score=min_score,
             extensions=ext,
             min_size_mb=min_size_mb,
@@ -77,7 +79,7 @@ def rename_command(
     new_name: Optional[str] = typer.Option(None, "--new-name", "-n", help="New filename for single rename"),
     prefix: Optional[str] = typer.Option(None, "--prefix", "-p", help="Prefix for bulk rename"),
     suffix: Optional[str] = typer.Option(None, "--suffix", "-s", help="Suffix for bulk rename"),
-    case: Optional[str] = typer.Option(None, "--case", "-c", help="Case conversion: snake, kebab, camel, lower"),
+    case: Optional[str] = typer.Option(None, "--case", "-c", help="Case conversion: snake, kebab, camel, title, lower, upper"),
     seq: Optional[str] = typer.Option(None, "--seq", help="Sequence pattern: e.g. photo_"),
     start_dir: str = typer.Option(".", "--start-dir", help="Directory to search for items to rename"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without modifying disk"),
@@ -87,11 +89,12 @@ def rename_command(
     ✏️ Renames single or multiple files/folders matching a query.
     """
     try:
+        resolved_start = str(resolve_user_path(start_dir))
         if new_name:
-            actions = renamer.prepare_single_rename(query=query, new_name=new_name, start_dir=start_dir)
+            actions = renamer.prepare_single_rename(query=query, new_name=new_name, start_dir=resolved_start)
         elif any([prefix, suffix, case, seq]):
             actions = renamer.prepare_bulk_rename(
-                query=query, start_dir=start_dir, prefix=prefix, suffix=suffix, case_type=case, seq_pattern=seq
+                query=query, start_dir=resolved_start, prefix=prefix, suffix=suffix, case_type=case, seq_pattern=seq
             )
         else:
             AutobotTheme.render_warning("Specify --new-name or bulk pattern flags (--prefix, --suffix, --case, --seq).")
@@ -129,7 +132,9 @@ def move_command(
     🚚 Moves single or multiple files/folders to a target directory.
     """
     try:
-        actions = mover.prepare_move(query=query, target_dir=target_dir, start_dir=start_dir, extensions=ext)
+        resolved_start = str(resolve_user_path(start_dir))
+        resolved_target = str(resolve_user_path(target_dir, base_dir=Path(resolved_start)))
+        actions = mover.prepare_move(query=query, target_dir=resolved_target, start_dir=resolved_start, extensions=ext)
         if not actions:
             AutobotTheme.render_warning(f"No files matching '{query}' found to move.")
             return
@@ -137,10 +142,10 @@ def move_command(
         # Check if destination directory is missing
         missing_dest = any(a.requires_dest_creation or a.status == "MISSING_DESTINATION" for a in actions)
         if missing_dest:
-            resolved_target = Path(target_dir).resolve()
-            if not resolved_target.exists():
-                if InteractiveUI.prompt_create_destination(resolved_target, yes=yes):
-                    mover.create_destination_directory(resolved_target, user_confirmed=True)
+            dest_path = Path(resolved_target)
+            if not dest_path.exists():
+                if InteractiveUI.prompt_create_destination(dest_path, yes=yes):
+                    mover.create_destination_directory(dest_path, user_confirmed=True)
                     for a in actions:
                         if a.status == "MISSING_DESTINATION":
                             a.status = "OK"
@@ -156,7 +161,7 @@ def move_command(
         executed, errors = mover.execute_move(actions)
         if executed:
             session_id = logger.log_session(executed)
-            AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{target_dir}'! Session: [dim]{session_id}[/dim]")
+            AutobotTheme.render_success(f"Moved {len(executed)} item(s) to '{resolved_target}'! Session: [dim]{session_id}[/dim]")
         if errors:
             for err in errors:
                 AutobotTheme.render_error(err)
@@ -169,6 +174,7 @@ def ask_command(
     prompt: str = typer.Argument(..., help="Natural language request"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview proposed actions without executing"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Execute immediately without confirmation prompt"),
+    cwd_override: Optional[Path] = typer.Option(None, "--cwd", hidden=True, help="Internal directory override"),
 ):
     """
     🤖 Natural language AI assistant powered by Local LLMs (Gemma/Qwen 4B) or Cloud LLMs (OpenAI, Groq, OpenRouter, etc.).
@@ -191,18 +197,22 @@ def ask_command(
     filters = intent_data.get("filters") or {}
     exts = filters.get("extensions")
 
+    effective_base = cwd_override or Path.cwd()
+    resolved_source = str(resolve_user_path(source_dir, base_dir=effective_base))
+    resolved_target = str(resolve_user_path(target_dir, base_dir=Path(resolved_source))) if target_dir else None
+
     if action == "locate":
-        locate_command(query=query, start_dir=source_dir, ext=exts)
+        locate_command(query=query, start_dir=resolved_source, ext=exts)
     elif action == "rename":
         if not new_name:
             AutobotTheme.render_error("AI error: Missing target rename name.")
             return
-        rename_command(query=query, new_name=new_name, start_dir=source_dir, dry_run=dry_run, yes=yes)
+        rename_command(query=query, new_name=new_name, start_dir=resolved_source, dry_run=dry_run, yes=yes)
     elif action == "move":
-        if not target_dir:
+        if not resolved_target:
             AutobotTheme.render_error("AI error: Missing target move directory.")
             return
-        move_command(query=query, target_dir=target_dir, start_dir=source_dir, ext=exts, dry_run=dry_run, yes=yes)
+        move_command(query=query, target_dir=resolved_target, start_dir=resolved_source, ext=exts, dry_run=dry_run, yes=yes)
     else:
         AutobotTheme.render_warning(f"Unknown action parsed by AI: {action}")
 
@@ -247,7 +257,7 @@ def repl_input_handler(user_input: str, repl_instance: AutobotREPL) -> None:
         return
 
     # Fallback to AI Natural Language Assistant
-    ask_command(prompt=user_input)
+    ask_command(prompt=user_input, cwd_override=repl_instance.cwd)
 
 
 def main_launcher():

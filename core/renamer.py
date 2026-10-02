@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 
+from config import resolve_user_path
+
 
 @dataclass
 class RenameAction:
@@ -109,7 +111,8 @@ class FileRenamer:
         if query:
             from core.finder import FileFinder
             finder = FileFinder()
-            results = finder.search(query=query, start_dir=start_dir, max_results=1)
+            resolved_start = resolve_user_path(start_dir)
+            results = finder.search(query=query, start_dir=resolved_start, max_results=1)
             if not results:
                 return []
             return [cls._prepare_single_action(results[0].path, new_name)]
@@ -127,7 +130,7 @@ class FileRenamer:
         suffix: str = "",
         find_str: str = "",
         replace_str: str = "",
-        case_format: Optional[str] = None,  # "snake", "kebab", "lower", "upper"
+        case_format: Optional[str] = None,  # "snake", "kebab", "camel", "title", "lower", "upper"
         sequence_prefix: Optional[str] = None,  # e.g., "vacation_" -> vacation_01.jpg
         start_number: int = 1,
         query: Optional[str] = None,
@@ -142,12 +145,13 @@ class FileRenamer:
         if items is None and query:
             from core.finder import FileFinder
             finder = FileFinder()
-            results = finder.search(query=query, start_dir=start_dir)
+            resolved_start = resolve_user_path(start_dir)
+            results = finder.search(query=query, start_dir=resolved_start)
             items = [r.path for r in results]
         elif items is None:
             items = []
 
-        active_case = case_type or case_format
+        active_case = (case_type or case_format or "").lower()
         active_seq = seq_pattern if seq_pattern is not None else sequence_prefix
         actions: List[RenameAction] = []
         # Track proposed target names in this batch to detect internal collisions
@@ -174,14 +178,18 @@ class FileRenamer:
                 new_stem = new_stem.replace(find_str, replace_str)
 
             # 2. Apply Case Transformation
-            if case_format == "lower":
+            if active_case == "lower":
                 new_stem = new_stem.lower()
-            elif case_format == "upper":
+            elif active_case == "upper":
                 new_stem = new_stem.upper()
-            elif case_format == "snake":
+            elif active_case == "snake":
                 new_stem = FileRenamer._to_snake_case(new_stem)
-            elif case_format == "kebab":
+            elif active_case == "kebab":
                 new_stem = FileRenamer._to_kebab_case(new_stem)
+            elif active_case in ("camel", "camelcase"):
+                new_stem = FileRenamer._to_camel_case(new_stem)
+            elif active_case in ("title", "titlecase", "pascal"):
+                new_stem = FileRenamer._to_title_case(new_stem)
 
             # 3. Apply Prefix / Suffix
             if prefix:
@@ -283,3 +291,19 @@ class FileRenamer:
         """Converts string to kebab-case (e.g. 'My File Name' -> 'my-file-name')."""
         s = FileRenamer._to_snake_case(name)
         return s.replace('_', '-')
+
+    @staticmethod
+    def _to_camel_case(name: str) -> str:
+        """Converts string to camelCase (e.g. 'my_file_name' -> 'myFileName')."""
+        s = FileRenamer._to_snake_case(name)
+        parts = [p for p in s.split('_') if p]
+        if not parts:
+            return ""
+        return parts[0] + ''.join(word.capitalize() for word in parts[1:])
+
+    @staticmethod
+    def _to_title_case(name: str) -> str:
+        """Converts string to TitleCase / PascalCase (e.g. 'my_file_name' -> 'MyFileName')."""
+        s = FileRenamer._to_snake_case(name)
+        parts = [p for p in s.split('_') if p]
+        return ''.join(word.capitalize() for word in parts)

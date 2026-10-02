@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
 from dataclasses import dataclass
 
+from config import resolve_user_path
+
 
 @dataclass
 class MoveAction:
@@ -53,7 +55,7 @@ class FileMover:
         :param custom_target_name: Optional override filename (only used when moving a single item)
         :return: List of MoveAction objects
         """
-        resolved_target_dir = Path(target_dir).resolve()
+        resolved_target_dir = resolve_user_path(target_dir)
         dest_exists = resolved_target_dir.exists() and resolved_target_dir.is_dir()
         
         actions: List[MoveAction] = []
@@ -187,8 +189,10 @@ class FileMover:
         """
         from core.finder import FileFinder
         finder = FileFinder()
-        results = finder.search(query=query, start_dir=start_dir, extensions=extensions)
+        resolved_start = resolve_user_path(start_dir)
+        resolved_target = resolve_user_path(target_dir)
+        results = finder.search(query=query, start_dir=resolved_start, extensions=extensions)
         sources = [r.path for r in results]
-        return cls.prepare_move_actions(sources=sources, target_dir=Path(target_dir))
+        return cls.prepare_move_actions(sources=sources, target_dir=resolved_target)
 
     execute_move = execute_move_actions
