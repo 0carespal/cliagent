@@ -431,6 +431,73 @@ class TestAutobotCLI(unittest.TestCase):
             self.assertIsNone(result)
             self.assertIn("timed out after 90s", err)
 
+    def test_explicit_relative_path_resolution(self):
+        """Tests that explicit ./ or .\\ prefixes resolve to current directory and do not alias to home folder."""
+        from config import resolve_user_path
+        res_dot_slash = resolve_user_path("./downloads", base_dir=self.root_path)
+        self.assertEqual(res_dot_slash, (self.root_path / "downloads").resolve())
+        res_dot_backslash = resolve_user_path(".\\desktop", base_dir=self.root_path)
+        self.assertEqual(res_dot_backslash, (self.root_path / "desktop").resolve())
+
+    def test_mover_recursion_prevention(self):
+        """Tests that moving a folder into itself or a subdirectory of itself is prevented."""
+        parent_dir = self.root_path / "ParentFolder"
+        parent_dir.mkdir(exist_ok=True)
+        child_dir = parent_dir / "ChildFolder"
+        child_dir.mkdir(exist_ok=True)
+
+        actions = FileMover.prepare_move_actions(
+            sources=[parent_dir],
+            target_dir=child_dir
+        )
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0].status, "INVALID_MOVE")
+        self.assertIn("Cannot move folder", actions[0].message)
+
+    def test_mover_batch_internal_collision_missing_dest(self):
+        """Tests that duplicate target filenames in a single move batch are flagged as collisions even if target dir is missing."""
+        dir1 = self.root_path / "d1"
+        dir2 = self.root_path / "d2"
+        dir1.mkdir(exist_ok=True)
+        dir2.mkdir(exist_ok=True)
+        f1 = dir1 / "same_name.txt"
+        f2 = dir2 / "same_name.txt"
+        f1.write_text("one")
+        f2.write_text("two")
+
+        missing_target = self.root_path / "NonExistentDestFolder"
+
+        actions = FileMover.prepare_move_actions(
+            sources=[f1, f2],
+            target_dir=missing_target
+        )
+        self.assertEqual(len(actions), 2)
+        # First file requires destination creation
+        self.assertEqual(actions[0].status, "MISSING_DESTINATION")
+        # Second file targeting same path in same batch should be flagged COLLISION
+        self.assertEqual(actions[1].status, "COLLISION")
+
+    def test_undo_discards_dead_session(self):
+        """Tests that an un-restorable session (targets missing) is popped from undo stack to avoid jamming."""
+        from core.renamer import RenameAction
+        fake_action = RenameAction(
+            source_path=self.root_path / "ghost_src.txt",
+            target_path=self.root_path / "ghost_tgt.txt",
+            old_name="ghost_src.txt",
+            new_name="ghost_tgt.txt",
+            is_dir=False,
+            status="OK"
+        )
+        # Log a session with non-existent target
+        self.logger.log_session([fake_action])
+        initial_history_len = len(self.logger._load_history())
+
+        reversed_count, errors = self.logger.undo_last_session()
+        self.assertEqual(reversed_count, 0)
+        # Session should be popped so undo stack is not jammed
+        new_history_len = len(self.logger._load_history())
+        self.assertEqual(new_history_len, initial_history_len - 1)
+
 
 if __name__ == "__main__":
     unittest.main()

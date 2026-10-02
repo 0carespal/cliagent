@@ -101,18 +101,40 @@ class FileMover:
                 )
                 continue
 
-            # Determine status
-            status = "OK"
-            msg = "Ready to move."
-            requires_creation = not dest_exists
+            # Prevent moving a directory into itself or one of its subdirectories
+            if is_dir:
+                try:
+                    if resolved_target_dir == source_path or resolved_target_dir.is_relative_to(source_path):
+                        actions.append(
+                            MoveAction(
+                                source_path=source_path,
+                                target_dir=resolved_target_dir,
+                                target_path=target_path,
+                                is_dir=is_dir,
+                                status="INVALID_MOVE",
+                                message=f"Cannot move folder '{source_path.name}' into itself or one of its subdirectories.",
+                                requires_dest_creation=not dest_exists
+                            )
+                        )
+                        continue
+                except (ValueError, AttributeError):
+                    pass
 
-            if not dest_exists:
+            # Determine status with batch collision detection
+            requires_creation = not dest_exists
+            if target_path in proposed_target_paths:
+                status = "COLLISION"
+                msg = f"Multiple items in this move share the same target name '{target_name}'."
+            elif not dest_exists:
                 status = "MISSING_DESTINATION"
                 msg = f"Target directory '{resolved_target_dir}' does not exist."
-            elif target_path.exists() or target_path in proposed_target_paths:
+                proposed_target_paths.add(target_path)
+            elif target_path.exists():
                 status = "COLLISION"
                 msg = f"A file or folder named '{target_name}' already exists in destination."
             else:
+                status = "OK"
+                msg = "Ready to move."
                 proposed_target_paths.add(target_path)
 
             actions.append(
@@ -190,7 +212,7 @@ class FileMover:
         from core.finder import FileFinder
         finder = FileFinder()
         resolved_start = resolve_user_path(start_dir)
-        resolved_target = resolve_user_path(target_dir)
+        resolved_target = resolve_user_path(target_dir, base_dir=resolved_start)
         results = finder.search(query=query, start_dir=resolved_start, extensions=extensions)
         sources = [r.path for r in results]
         return cls.prepare_move_actions(sources=sources, target_dir=resolved_target)

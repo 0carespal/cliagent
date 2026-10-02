@@ -63,27 +63,41 @@ def detect_active_model() -> str:
     """
     Dynamically checks if an LLM has been configured.
     Returns:
-      - 'Cloud LLM (<model>)' if cloud API key is configured
-      - 'Local LLM (<model>)' if a local model was explicitly configured and is reachable
+      - 'Cloud LLM (<model>)' if cloud API key is configured or active
+      - 'Local LLM (<model>)' if a local model was explicitly configured/active and is reachable
       - 'No model available' if no model has been configured
     """
     import os
     import config
 
     cfg = config.load_user_config()
+    active_provider = cfg.get("active_provider", "").lower()
 
-    # 1. Check if user configured a Cloud API key
     api_key = config.LLM_API_KEY or cfg.get("llm_api_key", "")
-    if api_key and api_key.strip():
-        model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
-        return f"Cloud LLM ({model_name})"
+    has_cloud_key = bool(api_key and api_key.strip())
+    cloud_model_name = config.LLM_MODEL or cfg.get("llm_model", "gpt-4o-mini")
 
-    # 2. Check if user explicitly configured a local model
     local_model = (
         os.getenv("AUTOBOT_LOCAL_LLM_MODEL")
         or os.getenv("CLIAGENT_LOCAL_LLM_MODEL")
         or cfg.get("local_llm_model")
     )
+
+    # 1. If user explicitly chose Local as active provider
+    if active_provider == "local" and local_model and local_model.strip():
+        try:
+            from ai.local_llm import LocalLLMClient
+            local_client = LocalLLMClient(model_name=local_model)
+            if local_client.is_available():
+                return f"Local LLM ({local_model})"
+        except Exception:
+            pass
+
+    # 2. If user explicitly chose Cloud as active provider or configured key
+    if (active_provider == "cloud" or not active_provider) and has_cloud_key:
+        return f"Cloud LLM ({cloud_model_name})"
+
+    # 3. Check if local model was explicitly configured and is reachable
     if local_model and local_model.strip():
         try:
             from ai.local_llm import LocalLLMClient
@@ -92,6 +106,10 @@ def detect_active_model() -> str:
                 return f"Local LLM ({local_model})"
         except Exception:
             pass
+
+    # 4. Fallback to Cloud if key exists
+    if has_cloud_key:
+        return f"Cloud LLM ({cloud_model_name})"
 
     return "No model available"
 

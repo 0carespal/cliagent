@@ -423,12 +423,16 @@ class SlashCommandRouter:
             repl_instance.set_model(new_model)
             if "Local" in new_model:
                 config.save_user_config("local_llm_model", best_local_name)
+                config.save_user_config("active_provider", "local")
+            else:
+                config.save_user_config("active_provider", "cloud")
             AutobotTheme.render_success(f"Switched LLM Provider model to: [bold yellow]{new_model}[/bold yellow]")
             return
 
         # 3. Switch to Cloud
         if choice_lower in ["cloud", "openai", "remote", "api"]:
             repl_instance.set_model(cloud_label)
+            config.save_user_config("active_provider", "cloud")
             AutobotTheme.render_success(f"Switched LLM Provider to: [bold yellow]{cloud_label}[/bold yellow]")
             if not cloud_client.is_available():
                 AutobotTheme.render_warning("⚠️ Note: Cloud LLM API key not configured yet. Run: [bold cyan]/key <YOUR_API_KEY>[/bold cyan]")
@@ -441,6 +445,7 @@ class SlashCommandRouter:
                 return
             model_name = local_label
             config.save_user_config("local_llm_model", best_local_name)
+            config.save_user_config("active_provider", "local")
             repl_instance.set_model(model_name)
             AutobotTheme.render_success(f"Switched to Local LLM model: [bold yellow]{model_name}[/bold yellow]")
             return
@@ -460,6 +465,7 @@ class SlashCommandRouter:
         if matched_local:
             model_name = f"Local LLM ({matched_local})"
             config.save_user_config("local_llm_model", matched_local)
+            config.save_user_config("active_provider", "local")
         else:
             model_name = choice
 

@@ -132,13 +132,16 @@ class TransactionLogger:
             except Exception as e:
                 errors.append(f"Failed to restore '{current_target.name}': {e}")
 
-        # Remove undone session from history log
-        if reversed_count > 0:
+        # Remove undone session from history log if items were restored or if session is dead
+        should_pop = (reversed_count > 0) or (reversed_count == 0 and len(errors) == len(records) and len(records) > 0)
+        if should_pop:
             history = self._load_history()
             if history:
                 history.pop()  # Remove last entry
                 with open(self.log_path, "w", encoding="utf-8") as f:
                     json.dump(history, f, indent=2)
+            if reversed_count == 0:
+                errors.append("All target items were missing or unrestorable. Discarded dead session from undo stack.")
 
         return reversed_count, errors
 

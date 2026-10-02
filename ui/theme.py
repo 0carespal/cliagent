@@ -155,9 +155,15 @@ class AutobotTheme:
         cls.console.print(panel)
 
     @classmethod
-    def render_error(cls, message: str) -> None:
+    def render_error(cls, message: Any) -> None:
         """Renders error messages with consistent styling."""
-        cls.console.print(f"[bold red]✖ Error:[/bold red] {message}")
+        if hasattr(message, "message") and message.message:
+            src = getattr(message, "source_path", None)
+            prefix = f"{src.name}: " if src else ""
+            msg_str = f"{prefix}{message.message}"
+        else:
+            msg_str = str(message)
+        cls.console.print(f"[bold red]✖ Error:[/bold red] {msg_str}")
 
     @classmethod
     def render_success(cls, message: str) -> None:

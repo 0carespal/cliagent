@@ -93,10 +93,12 @@ def resolve_user_path(path_input: os.PathLike, base_dir: Path = None) -> Path:
     - Relative paths against base_dir (defaults to Path.cwd())
     - Absolute paths
     """
+    is_explicit_relative = False
     if isinstance(path_input, Path):
         p = path_input
     else:
         clean_str = str(path_input).strip("\"'")
+        is_explicit_relative = clean_str.startswith("./") or clean_str.startswith(".\\")
         p = Path(clean_str)
 
     # Expand tilde ~
@@ -113,7 +115,7 @@ def resolve_user_path(path_input: os.PathLike, base_dir: Path = None) -> Path:
         "videos": Path.home() / "Videos",
     }
 
-    if first_part in standard_aliases:
+    if not is_explicit_relative and first_part in standard_aliases:
         alias_root = standard_aliases[first_part]
         if len(p.parts) > 1:
             p = alias_root.joinpath(*p.parts[1:])
