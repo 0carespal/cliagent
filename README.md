@@ -159,34 +159,40 @@ Run natural language commands 100% offline:
 
 1. Install and run [Ollama](https://ollama.ai) or LM Studio.
 2. Pull your preferred model (e.g., `qwen3.5:4b` or `gemma4`):
-   ```bash
-   ollama run qwen3.5:4b
-   ```
+
+```bash
+ollama run qwen3.5:4b
+```
+
 3. Autobot automatically connects to `http://localhost:11434/v1` and auto-discovers your local models!
 
 ### 2. Universal Cloud LLMs (BYOK — Bring Your Own Key)
 Use any OpenAI-compatible provider (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, etc.).
 
-* **Inside the interactive REPL**:
-  ```text
-  autobot › /key sk-your-api-key-here
-  ```
-  *(Saved to `~/.autobot/config.json` so you only have to enter it once).*
+#### Option A: Inside the Interactive REPL
+Configure your key directly in the shell (automatically persisted to `~/.autobot/config.json`):
 
-* **Or via environment variables**:
-  ```powershell
-  # Windows PowerShell
-  $env:LLM_API_KEY="your-api-key-here"
-  $env:LLM_MODEL="gpt-4o-mini"            # Optional: defaults to gpt-4o-mini
-  $env:LLM_BASE_URL="https://api.openai.com/v1"  # Optional: Groq / OpenRouter / etc.
-  ```
+```text
+autobot › /key sk-your-api-key-here
+```
 
-  ```bash
-  # Linux / macOS / Bash
-  export LLM_API_KEY="your-api-key-here"
-  export LLM_MODEL="gpt-4o-mini"
-  export LLM_BASE_URL="https://api.openai.com/v1"
-  ```
+#### Option B: Via Environment Variables
+
+**Windows PowerShell**:
+
+```powershell
+$env:LLM_API_KEY="your-api-key-here"
+$env:LLM_MODEL="gpt-4o-mini"            # Optional: defaults to gpt-4o-mini
+$env:LLM_BASE_URL="https://api.openai.com/v1"  # Optional: Groq / OpenRouter / etc.
+```
+
+**Linux / macOS / Bash**:
+
+```bash
+export LLM_API_KEY="your-api-key-here"
+export LLM_MODEL="gpt-4o-mini"
+export LLM_BASE_URL="https://api.openai.com/v1"
+```
 
 ---
 
