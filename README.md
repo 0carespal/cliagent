@@ -4,7 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-cyan.svg)](https://www.python.org/downloads/)
 [![Platform: Cross-Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-brightgreen.svg)]()
 
-`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. Inspired by **Antigravity CLI** and **Aider**, it features a **persistent interactive REPL shell**, **tab auto-completion**, **deterministic slash commands (`/`)**, **rich dry-run preview action cards**, **transaction history undo logs**, and **optional natural language AI processing** powered by Local LLMs (Gemma 4B / Qwen 4B) or universal Cloud LLMs (OpenAI, Groq, OpenRouter, DeepSeek, etc.).
+`Autobot` is an intelligent, cross-platform Command Line Interface (CLI) agent built in Python for locating, renaming, and moving files/folders across directory trees. It features a **persistent interactive REPL shell**, **tab auto-completion**, **deterministic slash commands (`/`)**, **rich dry-run preview action cards**, **transaction history undo logs**, and **optional natural language AI processing** powered by Local LLMs (Gemma 4B / Qwen 4B) or universal Cloud LLMs (OpenAI, Groq, OpenRouter, DeepSeek, etc.).
 
 ---
 
@@ -24,7 +24,7 @@
 
 * **🔄 Persistent REPL Shell (`autobot › `)**: Continuous terminal session powered by `prompt_toolkit`. Remembers active workspace, model provider, and undo history across inputs.
 * **⚡ Tab Auto-Completion**: Context-aware completion for slash commands (`/lo` ➜ `/locate`, `/mo` ➜ `/move`, `/hi` ➜ `/history`) and local filesystem paths.
-* **🎨 Antigravity CLI Theme**: Terminal styling with rounded box borders (`box.ROUNDED`), Cyan/Magenta/Slate color palette, and live session status badges.
+* **🎨 CLI Theme**: Terminal styling with rounded box borders (`box.ROUNDED`), Cyan/Magenta/Slate color palette, and live session status badges.
 * **⚡ Deterministic Slash Commands**: Zero-latency commands (`/locate`, `/rename`, `/move`, `/undo`, `/history`, `/cd`, `/key`, `/model`, `/models`, `/status`, `/help`, `/clear`, `/exit`).
 * **🔍 Hybrid Search Engine (Wildcard Glob + RapidFuzz)**: Precision `fnmatch` wildcard glob matching (`*.png`, `*invoice*`, `doc_??.pdf`) with 100% precision score, combined with RapidFuzz fuzzy similarity scoring for natural typos (`invoce` ➜ `annual_invoice_2024.pdf`).
 * **✏️ Single & Bulk Pattern Renaming**: Rename individual items or apply pattern transformations (`snake_case`, `kebab-case`, `camelCase`, `title_case`, prefix/suffix, sequence numbering `01`, `02` with dynamic padding).
